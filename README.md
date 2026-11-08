@@ -21,7 +21,7 @@ Open [`preview.html`](preview.html) locally to see the page in a mock of AniList
 |---|---|---|
 | Hero | `hero.webp` | Animated: falling snow, moon glow, light sweep over the name |
 | Marquee tapes | `tapes.webp` | Animated crossing tapes ("WELCOME · ようこそ", "REM · レム · BEST GIRL") |
-| About me + favorite kanji 愛 | `intro.webp` | |
+| About me + favorite kanji 向日葵 | `intro.webp` | Sunflower (himawari) in a golden vertical seal |
 | Statistics | `stats.webp` | Chamfered "tech" card; snapshot from the AniList API, November 2026 |
 | Top 3 anime | `top3.webp` | Re:Zero, Shield Hero, Code Geass, official AniList covers |
 | Firsts & favorites | `firsts.webp` | Scattered polaroids with washi tape |
