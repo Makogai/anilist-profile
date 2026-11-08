@@ -7,8 +7,11 @@ in midnight blue and violet with mint, pink and gold accents. Assets are served 
 
 1. **About:** copy all of [`about.md`](about.md) into *Settings → About*. The asset URLs are pinned to a commit, so
    jsDelivr never serves a stale cached file.
-2. **Banner:** upload [`profile/banner.jpg`](profile/banner.jpg) (1700×330) in *Settings → Banner*.
-3. **Avatar:** upload [`profile/avatar.png`](profile/avatar.png) in *Settings → Avatar*.
+2. **Banner:** upload [`profile/banner.gif`](profile/banner.gif) (animated, 1700×330) in *Settings → Banner*. If
+   AniList rejects it or shows it frozen, use the static [`profile/banner.jpg`](profile/banner.jpg) instead.
+3. **Avatar:** upload [`profile/avatar.png`](profile/avatar.png) (Rem, blue ring) or
+   [`profile/avatar-sunflower.png`](profile/avatar-sunflower.png) (Rem with her sunflower, gold ring) in
+   *Settings → Avatar*. Both are transparent PNGs.
 4. **Sound (optional):** AniList's `webm()` always plays muted, so the visualizer is silent on the page. For sound,
    put the song's YouTube video id in `YOUTUBE_ID` in `build/make_about.py` and regenerate `about.md`. That adds a
    click-to-play `youtube()` embed under the visualizer.
@@ -19,9 +22,9 @@ Open [`preview.html`](preview.html) locally to see the page in a mock of AniList
 
 | Section | File(s) | Notes |
 |---|---|---|
-| Hero | `hero.webp` | Animated: falling snow, moon glow, light sweep over the name |
+| Hero | `hero.webp` | Animated: Rem's hair and ribbon sway and she blinks; snow, moon glow, light sweep over the name |
 | Marquee tapes | `tapes.webp` | Animated crossing tapes ("WELCOME · ようこそ", "REM · レム · BEST GIRL") |
-| About me + favorite kanji 向日葵 | `intro.webp` | Sunflower (himawari) in a golden vertical seal |
+| About me + favorite kanji 向日葵 | `intro.webp` | Animated: Rem waves, blinks, hair sways; sunflower (himawari) seal |
 | Statistics | `stats.webp` | Chamfered "tech" card; snapshot from the AniList API, November 2026 |
 | Top 3 anime | `top3.webp` | Re:Zero, Shield Hero, Code Geass, official AniList covers |
 | Firsts & favorites | `firsts.webp` | Scattered polaroids with washi tape |
@@ -31,6 +34,14 @@ Open [`preview.html`](preview.html) locally to see the page in a mock of AniList
 | Genre mastery | `genres.webp` | Honeycomb of the top 5 genres by titles watched, each with its own emblem |
 | Socials + footer | `social-*.webp`, `footer.webp` | |
 | Separators | `sep-chain.webp` (animated), `sep-lace.webp`, `sep-sigil.webp` | |
+
+Profile banner: a moonlit sunflower field with Rem holding a sunflower and 向日葵 in gold. Animated: wind through
+the field, Rem's hair and ribbon, fireflies, falling petals, moon glow and a shooting star. Rem sits right of
+centre and the lower-left stays calm, because AniList crops banners per screen and puts the avatar there.
+
+"Living" Rem: `build/live.py` animates the still art without redrawing it. Colour masks find her hair (blue),
+ribbon (pink) and the sunflowers, and smooth displacement fields sway them. The waving hand rotates around the
+wrist, and a Codex-made closed-eye twin of each artwork is blended over the eyes for the blink.
 
 Design notes: AniList shows the About column about **514 px** wide on desktop (measured), and images are capped to
 that width. Everything is drawn at 1440 px for sharp high-DPI screens, with text sized to stay readable at 0.36×.
@@ -45,10 +56,10 @@ Needs Python 3 with Pillow and numpy, and ffmpeg (VP9) on PATH. Fonts: Windows' 
 cd build
 python fetch_covers.py        # official cover art from the AniList API -> build/covers (git-ignored)
 python panels.py              # static panels, separators, socials, footer
-python animated.py            # hero, waifu fan, tapes, milestones, chain separator
+python animated.py            # hero, about me, waifu fan, tapes, milestones, chain separator
 python visualizer.py loop     # profile/nowplaying.webm (needs ../music.mp3, which is git-ignored)
 python visualizer.py full     # optional: export/rem-visualizer-full.mp4, 1080p with audio for YouTube
-python extras.py              # banner + avatar
+python extras.py              # banner (gif + jpg) + avatars
 python make_about.py <commit-sha>
 ```
 
