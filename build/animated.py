@@ -1,7 +1,8 @@
 """Animated assets (animated WebP, shown with img720 like the static panels, so text stays crisp):
-hero banner, waifu fan, crossing marquee tapes, episode-milestone staircase and the chain separator.
+hero banner and About me (living Rem: hair sway, blink, wave), waifu fan, crossing marquee tapes,
+episode-milestone staircase and the chain separator.
 
-Run: python build/animated.py [hero|waifu|tapes|milestones|chain]
+Run: python build/animated.py [hero|intro|waifu|tapes|milestones|chain]
 """
 import math
 import sys
@@ -9,11 +10,13 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from common import (ART, BLUE, CORAL, GOLD, GOLD_CORAL, ICE, LACE, LILAC, MAGENTA, MINT, OUT, RAINBOW,
-                    SATIN, SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow, card_frame, chamfer_frame,
-                    chamfer_poly, cover, diamond, draw_text, finish_card, font, gradient, gradient_map, mix,
-                    panel_base, particles, rgba, ribbon_x, rotated, rounded_mask, screen, section_title,
-                    sparkle, text_mask)
+import panels
+from common import (ART, BLUE, CORAL, GOLD, GOLD_CORAL, ICE, LACE, LILAC, MAGENTA, MINT, OUT, RAINBOW, SATIN,
+                    SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow, card_finisher, card_frame,
+                    chamfer_frame, chamfer_poly, cover, diamond, draw_text, finish_card, font, gradient,
+                    gradient_map, mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask,
+                    section_title, sparkle, text_mask)
+from live import Animator, blend_eyes, blink_amount, ellipse_mask, hsv_mask, locate_change, to_np, to_pil
 
 
 def save_anim(frames, name, durations, quality=80):
@@ -147,38 +150,67 @@ def waifu():
     save_anim(frames, "waifu.webp", durs, quality=84)
 
 
+# ---------------------------------------------------------------- living Rem helpers
+
+def eye_mask_from(base: np.ndarray, blink: np.ndarray, pad=18, blur=7):
+    """Feathered ellipse over the eye, located where the closed-eye art differs from the original."""
+    x0, y0, x1, y1, _, _ = locate_change(base, blink)
+    return ellipse_mask(base.shape, ((x0 + x1) / 2, (y0 + y1) / 2), ((x1 - x0) / 2 + pad, (y1 - y0) / 2 + pad),
+                        blur)
+
+
+def ramp(values, lo, hi):
+    """0 below lo, 1 above hi, smooth in between (for limiting masks to a region)."""
+    return np.clip((values - lo) / max(hi - lo, 1e-6), 0, 1)
+
+
+def mask_centre(anim, mask):
+    return anim.xx[mask > 0.5].mean(), anim.yy[mask > 0.5].mean()
+
+
 # ---------------------------------------------------------------- hero banner
 
 HW, HH = W, 520
 NAME_XY = (84, 318)
+HERO_FRAME = [(0, ICE), (0.5, VIOLET), (1, MAGENTA)]
 
 
-def hero_base():
-    art = Image.open(ART / "hero-rem.png").convert("RGBA")
-    img = cover(art, (HW, HH), (0.9, 0.47))
-    img.alpha_composite(gradient(HW, HH, [(0, rgba(VOID, 200)), (0.45, rgba(VOID, 60)), (0.6, rgba(VOID, 0))]))
-    lace = Image.open(ART / "orn-lace.png").convert("RGBA")
+def hero_layers():
+    """Rem art (and its closed-eye twin) cropped to the hero, plus an overlay with everything above it."""
+    art = to_np(cover(Image.open(ART / "hero-rem.png").convert("RGBA"), (HW, HH), (0.9, 0.47)))
+    blink = to_np(cover(Image.open(ART / "hero-rem-blink.png").convert("RGBA"), (HW, HH), (0.9, 0.47)))
+    over = gradient(HW, HH, [(0, rgba(VOID, 200)), (0.45, rgba(VOID, 60)), (0.6, rgba(VOID, 0))])
+    lace = Image.open(ART / "orn-lace.png").convert("RGB")
     band = lace.crop((0, 450, lace.width, 562)).resize((HW - 80, round(112 * (HW - 80) / lace.width)))
-    screen(img, band, 0.9, (40, HH - band.height - 8))
-    draw_text(img, (92, 152), "ANILIST  //  PROFILE", font("bahn", 34, "SemiBold"), fill=ICE,
+    over.alpha_composite(black_to_alpha(np.asarray(band, np.float32)), (40, HH - band.height - 8))
+    draw_text(over, (92, 152), "ANILIST  //  PROFILE", font("bahn", 34, "SemiBold"), fill=ICE,
               anchor="ls", tracking=10, shadow=False)
     name_font = font("bahn", 168, "Bold")
-    draw_text(img, NAME_XY, "MAKOGAI", name_font, anchor="ls", tracking=10,
+    draw_text(over, NAME_XY, "MAKOGAI", name_font, anchor="ls", tracking=10,
               gradient_stops=[(0, LACE), (0.35, ICE), (0.7, VIOLET), (1, MAGENTA)], glow=BLUE, glow_radius=24,
               glow_strength=1.3)
     sub_f = font("bahn", 50, "SemiBold")
     x, y = 94, 396
-    draw_text(img, (x, y), "Male", sub_f, fill=LACE, anchor="ls", tracking=2)
+    draw_text(over, (x, y), "Male", sub_f, fill=LACE, anchor="ls", tracking=2)
     x += sub_f.getlength("Male") + 2 * 3 + 30
-    diamond(ImageDraw.Draw(img), x, y - 18, 10, fill=rgba(MAGENTA))
-    draw_text(img, (x + 30, y), "Software Engineer", sub_f, anchor="ls", tracking=2,
+    diamond(ImageDraw.Draw(over), x, y - 18, 10, fill=rgba(MAGENTA))
+    draw_text(over, (x + 30, y), "Software Engineer", sub_f, anchor="ls", tracking=2,
               gradient_stops=[(0, LACE), (1, MINT)])
-    ribbon_x(ImageDraw.Draw(img), 76, 190, 12, MAGENTA, 6)
-    return img, text_mask((HW, HH), NAME_XY, "MAKOGAI", name_font, "ls", 10)
+    ribbon_x(ImageDraw.Draw(over), 76, 190, 12, MAGENTA, 6)
+    return art, blink, over, text_mask((HW, HH), NAME_XY, "MAKOGAI", name_font, "ls", 10)
 
 
 def hero_frames(fps, seconds):
-    base, name_mask = hero_base()
+    art, blink, over, name_mask = hero_layers()
+    eye = eye_mask_from(art, blink)
+    anim = Animator(art)
+    rgb = art[..., :3]
+    moon = (862, 154)
+    not_moon = 1 - ellipse_mask(art.shape, moon, (150, 150), 20)
+    not_eye = 1 - ellipse_mask(art.shape, mask_centre(anim, eye), (70, 50), 10)
+    hair = hsv_mask(rgb, (195, 235), 0.35, 0.42, 4) * ramp(anim.xx, 900, 960) * not_moon * not_eye
+    ribbon = hsv_mask(rgb, (300, 345), 0.3, 0.35, 4) * ramp(anim.xx, 1220, 1250)
+    finish = card_finisher((HW, HH), stops=HERO_FRAME)
     n = fps * seconds
     rng = np.random.default_rng(42)
     P = 70
@@ -190,12 +222,14 @@ def hero_frames(fps, seconds):
     star = rng.random(P) < 0.25
     cols = [ICE, LACE, MAGENTA, MINT]
     col = rng.integers(0, len(cols), P)
-    moon = (862, 154)
     nm = np.asarray(name_mask, np.float32) / 255
     frames = []
     for i in range(n):
         t = i / n  # 0..1 loop phase
-        f = base.copy()
+        anim.sway(hair, 2 * t, 3.2, wavelength=140)
+        anim.sway(ribbon, 3 * t + 0.25, 4.5, wavelength=80)
+        f = to_pil(blend_eyes(anim.render(), blink, eye, blink_amount(t, 0.62)))
+        f.alpha_composite(over)
         g = Image.new("RGBA", (HW, HH), (0, 0, 0, 0))  # moon breathing glow
         r = 120 + 18 * math.sin(2 * math.pi * t)
         ImageDraw.Draw(g).ellipse((moon[0] - r, moon[1] - r, moon[0] + r, moon[1] + r),
@@ -220,13 +254,45 @@ def hero_frames(fps, seconds):
             band = np.asarray(shine_band((HW, HH), pos, 70, 0.3, strength=210), np.float32)
             band[..., 3] *= nm
             f.alpha_composite(Image.fromarray(band.astype(np.uint8), "RGBA"))
-        frames.append(finish_card(f, stops=[(0, ICE), (0.5, VIOLET), (1, MAGENTA)]))
+        frames.append(finish(f))
     return frames
 
 
 def hero():
     frames = hero_frames(12, 6)
     save_anim(frames, "hero.webp", [83] * len(frames), quality=78)
+
+
+# ---------------------------------------------------------------- about me: Rem waves, blinks, hair sways
+
+def intro():
+    bg, over = panels.intro_layers()
+    rem, pos = panels.intro_rem()
+    a = to_np(rem)
+    blink = to_np(panels.intro_rem("intro-rem-blink.png")[0])
+    fade = panels.intro_fade(rem.size)
+    eye = eye_mask_from(a, blink)
+    anim = Animator(a)
+    not_eye = 1 - ellipse_mask(a.shape, mask_centre(anim, eye), (80, 60), 10)
+    hair = hsv_mask(a[..., :3], (195, 235), 0.35, 0.42, 4) * (1 - ramp(anim.yy, 560, 640)) * not_eye
+    ribbon = hsv_mask(a[..., :3], (300, 345), 0.3, 0.4, 4) * ramp(anim.xx, 630, 660)
+    hand = ellipse_mask(a.shape, (165, 640), (125, 165), 22)
+    wrist = (237, 787)
+    finish = card_finisher(bg.size, stops=panels.INTRO_FRAME)
+    n = 48  # 4 s at 12 fps
+    frames = []
+    for i in range(n):
+        t = i / n
+        anim.sway(hair, t, 3.0, wavelength=150)
+        anim.sway(ribbon, 2 * t + 0.3, 4.5, wavelength=90)
+        anim.rotate(hand, wrist, 7 * math.sin(2 * math.pi * 3 * t))  # three waves per loop
+        fr = blend_eyes(anim.render(), blink, eye, blink_amount(t, 0.7))
+        fr[..., 3] = fade
+        f = bg.copy()
+        f.alpha_composite(to_pil(fr), pos)
+        f.alpha_composite(over)
+        frames.append(finish(f))
+    save_anim(frames, "intro.webp", [83] * n, quality=80)
 
 
 # ---------------------------------------------------------------- crossing marquee tapes
@@ -468,6 +534,7 @@ def chain():
 
 
 if __name__ == "__main__":
-    jobs = {"hero": hero, "waifu": waifu, "tapes": tapes, "milestones": milestones, "chain": chain}
+    jobs = {"hero": hero, "intro": intro, "waifu": waifu, "tapes": tapes, "milestones": milestones,
+            "chain": chain}
     for name in sys.argv[1:] or list(jobs):
         jobs[name]()

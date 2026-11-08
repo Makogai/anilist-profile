@@ -341,6 +341,18 @@ def chamfer_frame(size, c, stops, glow_col, inset=6, width=4):
     return out
 
 
+def card_finisher(size, radius=40, stops=ICE_VIOLET, glow_col=BLUE):
+    """finish_card for many animation frames of one size: frame overlay and mask are built once."""
+    overlay = card_frame(size, radius=radius - 8, stops=stops, inset=6, glow_col=glow_col)
+    mask = np.asarray(rounded_mask(size, radius))
+
+    def apply(img: Image.Image) -> Image.Image:
+        img.alpha_composite(overlay)
+        img.putalpha(Image.fromarray(np.minimum(np.asarray(img.getchannel("A")), mask), "L"))
+        return img
+    return apply
+
+
 def finish_card(img: Image.Image, radius=40, frame=True, stops=ICE_VIOLET, shape="round",
                 glow_col=BLUE) -> Image.Image:
     """Clip to a rounded (or chamfered, 'tech' style) card and add the glowing frame."""

@@ -6,11 +6,11 @@ export/
 build/covers/
 __pycache__/
 
-# old profile images, superseded by profile/
-animecards-*.png
-banner.gif
-header.jpg
-intro.png
-stats.png
-top3.png
-profile-pic.png
+# old profile images in the repo root, superseded by profile/ (anchored: profile/banner.gif is ours)
+/animecards-*.png
+/banner.gif
+/header.jpg
+/intro.png
+/stats.png
+/top3.png
+/profile-pic.png

@@ -11,11 +11,11 @@ import math
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from common import (ART, BLUE, CORAL, COVERS, GOLD, GOLD_CORAL, ICE, ICE_PINK, ICE_VIOLET, INDIGO,
-                    LACE, LILAC, MAGENTA, MINT, MINT_BLUE, MINT_PINK, RAINBOW, SATIN, SILVER, VIOLET,
-                    VOID, W, black_to_alpha, blur_glow, card_frame, cover, diamond, draw_rich,
-                    draw_text, finish_card, font, glass, gradient, mix, panel_base, particles, rgba,
-                    ribbon_x, rotated, rounded_mask, save, screen, section_title, sparkle)
+from common import (ART, BLUE, CORAL, COVERS, GOLD, ICE, ICE_PINK, INDIGO, LACE, LILAC, MAGENTA, MINT,
+                    MINT_PINK, RAINBOW, SATIN, SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow,
+                    card_frame, cover, diamond, draw_rich, draw_text, finish_card, font, glass, gradient,
+                    mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask, save, section_title,
+                    sparkle)
 
 
 # ---------------------------------------------------------------- shared pieces
@@ -72,28 +72,54 @@ def soft_glow_spot(img, box, col, alpha, blur):
 SUN = [(0, (255, 240, 160)), (0.5, GOLD), (1, (255, 150, 60))]  # 向日葵 section
 
 
-def intro():
-    H = 1330
-    img = panel_base(H, focus=(0.2, 0.5))
-    soft_glow_spot(img, (-200, 300, 400, 800), MAGENTA, 50, 120)
-    rem = Image.open(ART / "intro-rem.png").convert("RGBA")
+INTRO_H = 1330
+INTRO_FRAME = [(0, ICE), (0.5, MAGENTA), (1, GOLD)]
+
+
+def intro_rem(name="intro-rem.png"):
+    """The intro Rem art at panel scale (no alpha yet) and where it sits."""
+    rem = Image.open(ART / name).convert("RGBA")
     rh = 1280
     rem = rem.resize((round(rem.width * rh / rem.height), rh), Image.LANCZOS)
-    m = np.ones((rem.height, rem.width), np.float32)
-    fx = np.clip(np.linspace(0, 1, rem.width) / 0.12, 0, 1)
-    fy = np.clip((np.linspace(1, 0, rem.height)) / 0.25, 0, 1)
-    ft = np.clip(np.linspace(0, 1, rem.height) / 0.06, 0, 1)
-    m *= fx[None, :] * fy[:, None] * ft[:, None]
-    rem.putalpha(Image.fromarray((m * 255).astype(np.uint8), "L"))
+    return rem, (W - rem.width + 70, 10)
+
+
+def intro_fade(size):
+    """Alpha fading the Rem art into the card at its left edge, top and bottom."""
+    w, h = size
+    fx = np.clip(np.linspace(0, 1, w) / 0.12, 0, 1)
+    fy = np.clip((np.linspace(1, 0, h)) / 0.25, 0, 1)
+    ft = np.clip(np.linspace(0, 1, h) / 0.06, 0, 1)
+    return (fx[None, :] * fy[:, None] * ft[:, None] * 255).astype(np.uint8)
+
+
+def intro_layers():
+    """Card background (below Rem) and an overlay with everything drawn above her. Split so
+    animated.py can animate Rem in between."""
+    img = panel_base(INTRO_H, focus=(0.2, 0.5))
+    soft_glow_spot(img, (-200, 300, 400, 800), MAGENTA, 50, 120)
     soft_glow_spot(img, (900, 80, 1420, 600), VIOLET, 90, 90)
     soft_glow_spot(img, (1000, 500, 1500, 1000), MINT, 50, 110)
-    img.alpha_composite(rem, (W - rem.width + 70, 10))
+    over = Image.new("RGBA", img.size, (0, 0, 0, 0))
     sp = particles(img.size, 70, 7, rmax=9, colours=(ICE, MAGENTA, GOLD, MINT))
     a = np.asarray(sp.getchannel("A"), np.float32)
     a[:, :840] *= 0.25  # keep sparkles mostly off the text column
     sp.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
-    img.alpha_composite(sp)
+    over.alpha_composite(sp)
+    draw_intro_text(over)
+    return img, over
 
+
+def intro():
+    bg, over = intro_layers()
+    rem, pos = intro_rem()
+    rem.putalpha(Image.fromarray(intro_fade(rem.size), "L"))
+    bg.alpha_composite(rem, pos)
+    bg.alpha_composite(over)
+    save(finish_card(bg, stops=INTRO_FRAME), "intro.webp")
+
+
+def draw_intro_text(img):
     x = 96
     y = section_title(img, 96, "PROFILE  //  01", "ABOUT ME", "自己紹介", x=x, align="l", jp_on_label=True,
                       stops=ICE_PINK)
@@ -128,7 +154,6 @@ def intro():
     ], 36, 410, 52)
     big = black_to_alpha(np.asarray(flower.resize((230, 230), Image.LANCZOS), np.float32), floor=12)
     img.alpha_composite(big, (sx + sw + 40, max(cy + 6, sy + sh - 230)))
-    save(finish_card(img, stops=[(0, ICE), (0.5, MAGENTA), (1, GOLD)]), "intro.webp")
 
 
 # ---------------------------------------------------------------- stats ("tech" chamfered card)
