@@ -1,110 +1,102 @@
-"""Profile banner (AniList settings -> banner, 1700x330) and avatars (settings -> avatar).
+"""Profile banner (AniList settings -> banner, 1700x330 JPG; AniList only takes static banners) and
+avatars (settings -> avatar).
 
-AniList crops the banner differently per screen (centre stays visible) and draws the avatar and
-username over its lower-left, so Rem sits right of centre and the lower-left stays calm.
-Outputs: banner.gif (animated: wind through the sunflowers, Rem's hair and ribbon, fireflies,
-petals, moon glow, a shooting star), banner.jpg (static fallback), avatar.png, avatar-sunflower.png.
+AniList crops the banner differently per screen (the centre stays visible) and draws the avatar and
+username over its lower-left, so the name sits up in the night sky between the moon and Rem, Rem is
+right of centre and the lower-left stays calm.
+Outputs: banner.jpg, avatar.png, avatar-sunflower.png.
 """
 import math
-import subprocess
-import tempfile
-from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from common import (ART, GOLD, ICE, ICE_VIOLET, LACE, OUT, black_to_alpha, blur_glow, cover, draw_text, font,
-                    gradient, rgba, save, sparkle)
-from live import Animator, ellipse_mask, hsv_mask, to_np, to_pil
+from animated import shine_band
+from common import (ART, BLUE, GOLD, ICE, ICE_VIOLET, LACE, MAGENTA, VIOLET, black_to_alpha, blur_glow, cover,
+                    diamond, draw_text, font, gradient, rgba, save, sparkle, text_mask)
 
 BW, BH = 1700, 330
 SUN = [(0, (255, 240, 160)), (0.5, GOLD), (1, (255, 150, 60))]
 WARM = [(255, 214, 110), (255, 240, 170), (255, 180, 80)]
+NAME_STOPS = [(0, LACE), (0.35, ICE), (0.7, VIOLET), (1, MAGENTA)]
+MOON = (398, 100)
 
 
-def banner_frames(n=48):
-    art = to_np(cover(Image.open(ART / "banner-rem-wide.png").convert("RGBA"), (BW, BH), (0.5, 0.49)))
-    anim = Animator(art)
-    rgb = art[..., :3]
-    xx, yy = anim.xx, anim.yy
-    rem_zone = np.clip((xx - 830) / 30, 0, 1) * np.clip((1150 - xx) / 30, 0, 1)
-    face = ellipse_mask(art.shape, (985, 150), (85, 95), 12)
-    hair = hsv_mask(rgb, (195, 235), 0.35, 0.42, 3) * rem_zone * (1 - face)
-    ribbon = hsv_mask(rgb, (300, 345), 0.3, 0.35, 3) * np.clip((xx - 1040) / 20, 0, 1)
-    flowers = hsv_mask(rgb, (30, 62), 0.45, 0.5, 3) * np.clip((yy - 120) / 40, 0, 1)
+def banner_name(img, cx=660, base=114, max_w=362):
+    """MAKOGAI in the sky between moon and Rem: colour-split ghosts, double glow, gradient fill, a light
+    streak and sparkles, over a gold rule with the name in katakana."""
+    text, tracking = "MAKOGAI", 12
+    size = 96
+    while True:  # biggest size that still fits between the moon and Rem's hair
+        f = font("bahn", size, "Bold")
+        m = text_mask(img.size, (cx, base), text, f, "ms", tracking)
+        x0, y0, x1, y1 = m.getbbox()
+        if x1 - x0 <= max_w:
+            break
+        size -= 2
+    mask = np.asarray(m, np.float32) / 255
+    halo = Image.new("RGBA", img.size, rgba(MAGENTA))  # wide magenta halo
+    halo.putalpha(m)
+    img.alpha_composite(blur_glow(halo, 30, 1.3))
+    for col, dx in ((ICE, -5), (MAGENTA, 5)):  # chromatic split
+        ghost = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw_text(ghost, (cx + dx, base), text, f, fill=col, anchor="ms", tracking=tracking, shadow=False)
+        a = np.asarray(ghost.getchannel("A"), np.float32) * 0.6
+        ghost.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
+        img.alpha_composite(ghost)
+    draw_text(img, (cx, base), text, f, anchor="ms", tracking=tracking, gradient_stops=NAME_STOPS, glow=BLUE,
+              glow_radius=14, glow_strength=1.2)
+    streak = np.asarray(shine_band(img.size, x0 + (x1 - x0) * 0.62, 34, 0.35,
+                                   colours=((255, 255, 255), ICE, (255, 255, 255)), strength=230), np.float32)
+    streak[..., 3] *= mask
+    img.alpha_composite(Image.fromarray(streak.astype(np.uint8), "RGBA"))
+    d = ImageDraw.Draw(img)
+    sparkle(d, x0 + 6, y0 + 4, 16, LACE)
+    sparkle(d, x1 - 4, y0 - 6, 22, LACE)
+    sparkle(d, x0 - 20, y1 - 8, 9, GOLD)
+    # gold rule with a diamond, then マコガイ
+    ry = base + 22
+    rule = gradient(x1 - x0 + 40, 3, [(0, rgba(GOLD, 0)), (0.5, rgba(GOLD, 255)), (1, rgba(GOLD, 0))])
+    img.alpha_composite(blur_glow(rule, 4, 1.5), (x0 - 20, ry))
+    img.alpha_composite(rule, (x0 - 20, ry))
+    diamond(d, cx, ry + 1, 7, fill=rgba(GOLD), outline=rgba(LACE), width=1)
+    draw_text(img, (cx, ry + 44), "マコガイ", font("serifjp", 30, "Bold"), anchor="ms", tracking=14,
+              gradient_stops=SUN, glow=GOLD, glow_radius=10)
+    print(f"name: {size}px, x {x0}-{x1}, y {y0}-{y1}")
 
-    over = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))
-    # 向日葵 in gold, top right: favourite kanji next to the favourite girl
-    draw_text(over, (1490, 92), "向日葵", font("serifjp", 66, "Black"), anchor="ms", tracking=10,
-              gradient_stops=SUN, glow=GOLD, glow_radius=16)
-    draw_text(over, (1490, 128), "ひまわり", font("sansjp", 24, "Medium"), fill=LACE, anchor="ms", tracking=8,
-              shadow=False)
 
+def banner():
+    img = cover(Image.open(ART / "banner-rem-wide.png").convert("RGBA"), (BW, BH), (0.5, 0.49))
+    g = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))  # soft moon halo
+    ImageDraw.Draw(g).ellipse((MOON[0] - 100, MOON[1] - 100, MOON[0] + 100, MOON[1] + 100), fill=rgba(ICE, 55))
+    img.alpha_composite(g.filter(ImageFilter.GaussianBlur(30)))
     rng = np.random.default_rng(5)
-    F = 46  # fireflies
-    fx, fy = rng.uniform(0, BW, F), rng.uniform(80, BH, F)
-    fph, fsz = rng.uniform(0, 2 * math.pi, F), rng.uniform(2.0, 4.5, F)
-    fcol = rng.integers(0, len(WARM), F)
-    P = 9  # falling petals
-    px, py, pph = rng.uniform(0, BW, P), rng.uniform(0, BH, P), rng.uniform(0, 2 * math.pi, P)
-    moon = (398, 52)
-    frames = []
-    for i in range(n):
-        t = i / n
-        anim.sway(flowers, 2 * t, 2.6, wavelength=300, vertical=0.6, along=(1.0, 0.15))
-        anim.sway(hair, 2 * t, 2.2, wavelength=110)
-        anim.sway(ribbon, 3 * t + 0.2, 3.5, wavelength=60)
-        f = to_pil(anim.render())
-        g = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))  # moon glow breathing
-        r = 92 + 12 * math.sin(2 * math.pi * t)
-        ImageDraw.Draw(g).ellipse((moon[0] - r, moon[1] - r, moon[0] + r, moon[1] + r),
-                                  fill=rgba(ICE, int(45 + 25 * math.sin(2 * math.pi * t))))
-        f.alpha_composite(g.filter(ImageFilter.GaussianBlur(30)))
-        fx_layer = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))
-        d = ImageDraw.Draw(fx_layer)
-        for k in range(F):  # fireflies rise once per loop, drift and twinkle
-            y = (fy[k] - t * (BH + 40)) % (BH + 40) - 20
-            x = fx[k] + 18 * math.sin(2 * math.pi * t + fph[k])
-            a = int(120 + 135 * (0.5 + 0.5 * math.sin(2 * math.pi * 3 * t + fph[k])))
-            s = fsz[k]
-            d.ellipse((x - s, y - s, x + s, y + s), fill=rgba(WARM[fcol[k]], a))
-        for k in range(P):  # golden petals tumbling down-left
-            y = (py[k] + t * (BH + 60)) % (BH + 60) - 30
-            x = (px[k] - t * 260) % BW
-            ang = 2 * math.pi * t * 2 + pph[k]
-            pts = [(x + 11 * math.cos(ang + a_) * (1 if j % 2 == 0 else 0.45),
-                    y + 11 * math.sin(ang + a_) * (1 if j % 2 == 0 else 0.45))
-                   for j, a_ in enumerate((0, math.pi / 2, math.pi, 3 * math.pi / 2))]
-            d.polygon(pts, fill=rgba(GOLD, 220))
-        if 0.12 <= t < 0.3:  # shooting star, top right towards the moon
-            u = (t - 0.12) / 0.18
-            hx, hy = 1460 - 520 * u, 18 + 70 * u
-            for j in range(26):
-                tx, ty = hx + j * 7.5, hy - j * 1.0
-                d.ellipse((tx - 3 + j * 0.1, ty - 3 + j * 0.1, tx + 3 - j * 0.1, ty + 3 - j * 0.1),
-                          fill=rgba(LACE, int(255 * (1 - j / 26) * (1 - abs(u - 0.5)))))
-            sparkle(d, hx, hy, 12, LACE, int(255 * (1 - abs(u - 0.5))))
-        f.alpha_composite(blur_glow(fx_layer, 6, 1.6))
-        f.alpha_composite(fx_layer)
-        f.alpha_composite(over)
-        frames.append(f.convert("RGB"))
-    return frames
-
-
-def banner(n=36, fps=9):
-    frames = banner_frames(n)  # one 4 s loop; fewer frames keep the GIF under ~4 MB
-    save(frames[0].convert("RGBA"), "banner.jpg", quality=92)
-    # GIF via ffmpeg: one palette for the whole loop and only the changed rectangle per frame,
-    # which keeps the night-sky gradients from flickering and the file small
-    with tempfile.TemporaryDirectory() as tmp:
-        for i, f in enumerate(frames):
-            f.save(Path(tmp) / f"f{i:03d}.png")
-        out = OUT / "banner.gif"
-        subprocess.run(["ffmpeg", "-y", "-v", "error", "-framerate", str(fps), "-i", str(Path(tmp) / "f%03d.png"),
-                        "-vf", "split[a][b];[a]palettegen=max_colors=256:stats_mode=full[p];"
-                               "[b][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle",
-                        "-loop", "0", str(out)], check=True)
-    print(f"banner.gif: {BW}x{BH}, {len(frames)} frames, {out.stat().st_size / 1024:.0f} KB")
+    fx_layer = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))
+    d = ImageDraw.Draw(fx_layer)
+    for _ in range(46):  # fireflies over the field
+        x, y, s = rng.uniform(0, BW), rng.uniform(80, BH), rng.uniform(2.0, 4.5)
+        d.ellipse((x - s, y - s, x + s, y + s), fill=rgba(WARM[rng.integers(0, 3)], int(rng.uniform(140, 255))))
+    for _ in range(9):  # tumbling golden petals
+        x, y, ang = rng.uniform(0, BW), rng.uniform(0, BH), rng.uniform(0, 2 * math.pi)
+        pts = [(x + 11 * math.cos(ang + a) * (1 if j % 2 == 0 else 0.45),
+                y + 11 * math.sin(ang + a) * (1 if j % 2 == 0 else 0.45))
+               for j, a in enumerate((0, math.pi / 2, math.pi, 3 * math.pi / 2))]
+        d.polygon(pts, fill=rgba(GOLD, 220))
+    hx, hy = 1185, 44  # shooting star heading down-left, tail ending before 向日葵
+    for j in range(26):
+        tx, ty = hx + j * 7.2, hy - j * 1.0
+        r = 3 - j * 0.1
+        d.ellipse((tx - r, ty - r, tx + r, ty + r), fill=rgba(LACE, int(255 * (1 - j / 26))))
+    sparkle(d, hx, hy, 13, LACE)
+    img.alpha_composite(blur_glow(fx_layer, 6, 1.6))
+    img.alpha_composite(fx_layer)
+    # 向日葵 in gold, top right: favourite kanji next to the favourite girl
+    draw_text(img, (1490, 92), "向日葵", font("serifjp", 66, "Black"), anchor="ms", tracking=10,
+              gradient_stops=SUN, glow=GOLD, glow_radius=16)
+    draw_text(img, (1490, 128), "ひまわり", font("sansjp", 24, "Medium"), fill=LACE, anchor="ms", tracking=8,
+              shadow=False)
+    banner_name(img)
+    save(img, "banner.jpg", quality=93)
 
 
 def ring_avatar(face_img, ring_stops, glow_col, name, sticker=None):

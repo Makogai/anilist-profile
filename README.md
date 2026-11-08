@@ -7,8 +7,8 @@ in midnight blue and violet with mint, pink and gold accents. Assets are served 
 
 1. **About:** copy all of [`about.md`](about.md) into *Settings → About*. The asset URLs are pinned to a commit, so
    jsDelivr never serves a stale cached file.
-2. **Banner:** upload [`profile/banner.gif`](profile/banner.gif) (animated, 1700×330) in *Settings → Banner*. If
-   AniList rejects it or shows it frozen, use the static [`profile/banner.jpg`](profile/banner.jpg) instead.
+2. **Banner:** upload [`profile/banner.jpg`](profile/banner.jpg) (1700×330) in *Settings → Banner*. AniList only
+   takes static banners.
 3. **Avatar:** upload [`profile/avatar.png`](profile/avatar.png) (Rem, blue ring) or
    [`profile/avatar-sunflower.png`](profile/avatar-sunflower.png) (Rem with her sunflower, gold ring) in
    *Settings → Avatar*. Both are transparent PNGs.
@@ -35,9 +35,10 @@ Open [`preview.html`](preview.html) locally to see the page in a mock of AniList
 | Socials + footer | `social-*.webp`, `footer.webp` | |
 | Separators | `sep-chain.webp` (animated), `sep-lace.webp`, `sep-sigil.webp` | |
 
-Profile banner: a moonlit sunflower field with Rem holding a sunflower and 向日葵 in gold. Animated: wind through
-the field, Rem's hair and ribbon, fireflies, falling petals, moon glow and a shooting star. Rem sits right of
-centre and the lower-left stays calm, because AniList crops banners per screen and puts the avatar there.
+Profile banner: a moonlit sunflower field with Rem holding a sunflower, fireflies, petals and a shooting star.
+"MAKOGAI" sits in the night sky between the moon and Rem, with a colour-split glow, light streak and a gold rule
+over マコガイ, and 向日葵 is in gold on the right. Rem sits right of centre and the lower-left stays calm, because
+AniList crops banners per screen and puts the avatar and username there.
 
 "Living" Rem: `build/live.py` animates the still art without redrawing it. Colour masks find her hair (blue),
 ribbon (pink) and the sunflowers, and smooth displacement fields sway them. The waving hand rotates around the
@@ -59,7 +60,7 @@ python panels.py              # static panels, separators, socials, footer
 python animated.py            # hero, about me, waifu fan, tapes, milestones, chain separator
 python visualizer.py loop     # profile/nowplaying.webm (needs ../music.mp3, which is git-ignored)
 python visualizer.py full     # optional: export/rem-visualizer-full.mp4, 1080p with audio for YouTube
-python extras.py              # banner (gif + jpg) + avatars
+python extras.py              # banner + avatars
 python make_about.py <commit-sha>
 ```
 
