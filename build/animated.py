@@ -1,7 +1,7 @@
-"""Animated assets: hero banner, holo waifu cards and the morning-star chain separator.
+"""Animated assets (animated WebP, shown with img720 like the static panels, so text stays crisp):
+hero banner, waifu fan, crossing marquee tapes, episode-milestone staircase and the chain separator.
 
-Animated WebP is used so they can be shown with img720 like the static panels (crisp 2x text).
-Run: python build/animated.py [cards|row|chain|hero]
+Run: python build/animated.py [hero|waifu|tapes|milestones|chain]
 """
 import math
 import sys
@@ -9,9 +9,10 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from common import (ART, BLUE, black_to_alpha, CORAL, GOLD, ICE, INDIGO, LACE, LILAC, MAGENTA, OUT,
-                    SATIN, VIOLET, VOID, W, blur_glow, card_frame, cover, diamond,
-                    draw_text, finish_card, font, gradient, panel_base, rgba, ribbon_x, rounded_mask, screen,
+from common import (ART, BLUE, CORAL, GOLD, GOLD_CORAL, ICE, LACE, LILAC, MAGENTA, MINT, OUT, RAINBOW,
+                    SATIN, SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow, card_frame, chamfer_frame,
+                    chamfer_poly, cover, diamond, draw_text, finish_card, font, gradient, gradient_map, mix,
+                    panel_base, particles, rgba, ribbon_x, rotated, rounded_mask, screen, section_title,
                     sparkle, text_mask)
 
 
@@ -32,8 +33,7 @@ def shine_band(size, pos, width=110, angle=0.35, colours=((255, 255, 255), ICE, 
     d = (x + y * angle) - pos
     core = np.exp(-(d / width) ** 2)
     out = np.zeros((h, w, 4), np.float32)
-    # rainbow-ish tint across the band
-    t = np.clip((d / width + 1.5) / 3, 0, 1)
+    t = np.clip((d / width + 1.5) / 3, 0, 1)  # rainbow-ish tint across the band
     cols = np.array(colours, np.float32)
     idx = t * (len(cols) - 1)
     lo = np.floor(idx).astype(int).clip(0, len(cols) - 2)
@@ -45,11 +45,11 @@ def shine_band(size, pos, width=110, angle=0.35, colours=((255, 255, 255), ICE, 
 
 # ---------------------------------------------------------------- waifu cards
 
-CARDS = [
+CARDS = [  # key, name, Japanese name, series, frame gradient, glow, accent
     ("rem", "REM", "レム", "RE:ZERO", [(0, ICE), (0.5, BLUE), (1, VIOLET)], BLUE, MAGENTA),
     ("zerotwo", "ZERO TWO", "ゼロツー", "DARLING IN THE FRANXX", [(0, CORAL), (0.5, MAGENTA), (1, VIOLET)],
      MAGENTA, CORAL),
-    ("shiro", "SHIRO", "白", "NO GAME NO LIFE", [(0, LILAC), (0.5, VIOLET), (1, BLUE)], VIOLET, GOLD),
+    ("iroha", "IROHA", "色葉", "3D KANOJO: REAL GIRL", [(0, MINT), (0.5, BLUE), (1, VIOLET)], MINT, GOLD),
 ]
 
 
@@ -64,22 +64,19 @@ def card_still(key, name, jp, series, stops, glow, accent):
     img.alpha_composite(art, (m, m))
     img.alpha_composite(card_frame((cw, ch), 28, 4, stops, glow, inset=m - 2))
     d = ImageDraw.Draw(img)
-    # rarity badge
-    bx, by = 34, 34
+    bx, by = 34, 34  # rarity badge
     badge = gradient(92, 40, [(0, rgba(GOLD)), (1, rgba((255, 150, 80)))])
     badge.putalpha(rounded_mask((92, 40), 10))
     img.alpha_composite(badge, (bx, by))
     draw_text(img, (bx + 46, by + 21), "SSR", font("bahn", 28, "Bold"), fill=SATIN, anchor="mm",
               tracking=3, shadow=False)
-    # JP name in a vertical rail on the right
-    rail_x = cw - 58
+    rail_x = cw - 58  # Japanese name in a vertical rail on the right
     rail = Image.new("RGBA", (40, 40 + 46 * len(jp)), rgba(SATIN, 170))
     rail.putalpha(rounded_mask(rail.size, 12).point(lambda v: v * 170 // 255))
     img.alpha_composite(rail, (rail_x - 20, 30))
     for i, chr_ in enumerate(jp):
         draw_text(img, (rail_x, 70 + i * 46), chr_, font("serifjp", 34, "Bold"), fill=LACE,
                   anchor="mm", glow=glow, glow_radius=6, shadow=False)
-    # labels
     draw_text(img, (36, 530), series, font("bahn", 29, "SemiBold"), fill=stops[0][1], anchor="ls",
               tracking=2, shadow=False)
     size = 76 if len(name) <= 5 else 62
@@ -91,66 +88,69 @@ def card_still(key, name, jp, series, stops, glow, accent):
     return img
 
 
-def cards():
-    for key, *rest in CARDS:
-        still = card_still(key, *rest)
-        w, h = still.size
-        mask = rounded_mask((w - 24, h - 24), 26)
-        frames, durs = [still], [2600]
-        n = 16
-        for i in range(n):
-            pos = -250 + (w + h * 0.35 + 500) * i / (n - 1)
-            f = still.copy()
-            band = shine_band((w - 24, h - 24), pos, 90)
-            a = np.minimum(np.asarray(band.getchannel("A")), np.asarray(mask))
-            band.putalpha(Image.fromarray(a, "L"))
-            f.alpha_composite(band, (12, 12))
-            frames.append(f)
-            durs.append(45)
-        save_anim(frames, f"waifu-{key}.webp", durs, quality=86)
+WAIFU_STOPS = [(0, MAGENTA), (0.5, VIOLET), (1, MINT)]
 
 
-def cards_row():
-    """All three cards in one 1440 px row (they would not fit side by side as separate images in
-    the ~514 px About column). The holo shine sweeps across them one after another."""
-    stills = [card_still(key, *rest) for key, *rest in CARDS]
-    cw, ch = stills[0].size
-    sc = 0.94
-    sw, sh = round(cw * sc), round(ch * sc)
-    gap = (W - 3 * sw) // 4
-    # the cards sit on an opaque night-sky card: transparent gaps between animated cards picked up
-    # lossy-alpha smears in the WebP encoder
-    bg = finish_card(panel_base(sh + 2 * gap, focus=(0.5, 0.3)))
-    xs = [gap + i * (sw + gap) for i in range(3)]
-    small = [s.resize((sw, sh), Image.LANCZOS) for s in stills]
-    base = bg.copy()
-    for x, s in zip(xs, small):
-        base.alpha_composite(s, (x, gap))
+def waifu():
+    """Section title + a fanned hand of cards (Rem raised in the middle); a holo shine sweeps
+    left -> centre -> right. Cards sit on an opaque card: transparent gaps around animated cards
+    picked up lossy-alpha smears in the WebP encoder."""
+    H = 1090
+    bg = panel_base(H, bg="aurora", focus=(0.5, 0.7), dim=0.72)
+    glow = Image.new("RGBA", bg.size, (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse((420, 300, 1020, 980), fill=rgba(BLUE, 90))
+    bg.alpha_composite(glow.filter(ImageFilter.GaussianBlur(100)))
+    bg.alpha_composite(particles(bg.size, 60, 29, rmax=9, colours=(MAGENTA, MINT, ICE, LACE)))
+    section_title(bg, 66, "CHARACTER FILES", "WAIFU COLLECTION", "俺の嫁", stops=WAIFU_STOPS, glow=MAGENTA,
+                  label_col=MAGENTA)
+    # "best girl" tag under Rem
+    tf = font("bahn", 30, "Bold")
+    tw = int(tf.getlength("BEST GIRL") + 5 * 8 + 90)
+    tag = gradient(tw, 52, [(0, rgba(GOLD)), (1, rgba(CORAL))])
+    tag.putalpha(rounded_mask((tw, 52), 26))
+    bg.alpha_composite(tag, (720 - tw // 2, 990))
+    draw_text(bg, (720, 1026), "BEST GIRL", tf, fill=SATIN, anchor="ms", tracking=5, shadow=False)
+    dd = ImageDraw.Draw(bg)
+    for sx in (720 - tw // 2 + 26, 720 + tw // 2 - 26):
+        diamond(dd, sx, 1016, 8, fill=rgba(SATIN))
+    bg = finish_card(bg, stops=WAIFU_STOPS, glow_col=MAGENTA)
+
+    stills = {key: card_still(key, *rest) for key, *rest in CARDS}
+    # key, scale, tilt, centre; drawn in this order so Rem ends up on top
+    layout = [("zerotwo", 0.86, 8, (274, 650)), ("iroha", 0.86, -8, (1166, 650)), ("rem", 1.0, 0, (720, 620))]
+    shine_order = {"zerotwo": 0, "rem": 1, "iroha": 2}
+
+    def place(card, scale, tilt):
+        c = card.resize((round(card.width * scale), round(card.height * scale)), Image.LANCZOS)
+        return rotated(c, tilt) if tilt else c
+
+    static = {k: place(stills[k], s, a) for k, s, a, _ in layout}
+    cw, ch = 460, 690
     mask = np.asarray(rounded_mask((cw - 24, ch - 24), 26))
-    sweep, stagger = 16, 7
-    total = sweep + stagger * 2
-    frames, durs = [base], [2600]
-    for fi in range(total):
-        f = bg.copy()  # redraw every card on the clean background so glows never stack
-        for i in range(3):
-            k = fi - i * stagger
-            card = small[i]
-            if 0 <= k < sweep:
+    sweep, stagger = 16, 8
+    frames, durs = [], []
+    for fi in [-1] + list(range(sweep + 2 * stagger)):
+        f = bg.copy()
+        for key, scale, tilt, (cx, cy) in layout:
+            img = static[key]
+            k = fi - shine_order[key] * stagger
+            if fi >= 0 and 0 <= k < sweep:
                 pos = -250 + (cw + ch * 0.35 + 500) * k / (sweep - 1)
                 band = shine_band((cw - 24, ch - 24), pos, 90)
                 band.putalpha(Image.fromarray(np.minimum(np.asarray(band.getchannel("A")), mask), "L"))
-                card = stills[i].copy()
+                card = stills[key].copy()
                 card.alpha_composite(band, (12, 12))
-                card = card.resize((sw, sh), Image.LANCZOS)
-            f.alpha_composite(card, (xs[i], gap))
+                img = place(card, scale, tilt)
+            f.alpha_composite(img, (cx - img.width // 2, cy - img.height // 2))
         frames.append(f)
-        durs.append(45)
-    save_anim(frames, "waifu-row.webp", durs, quality=84)
+        durs.append(2600 if fi < 0 else 45)
+    save_anim(frames, "waifu.webp", durs, quality=84)
 
 
 # ---------------------------------------------------------------- hero banner
 
 HW, HH = W, 520
+NAME_XY = (84, 318)
 
 
 def hero_base():
@@ -160,29 +160,21 @@ def hero_base():
     lace = Image.open(ART / "orn-lace.png").convert("RGBA")
     band = lace.crop((0, 450, lace.width, 562)).resize((HW - 80, round(112 * (HW - 80) / lace.width)))
     screen(img, band, 0.9, (40, HH - band.height - 8))
-    draw_text(img, (92, 128), "ANILIST  //  PROFILE", font("bahn", 34, "SemiBold"), fill=ICE,
+    draw_text(img, (92, 152), "ANILIST  //  PROFILE", font("bahn", 34, "SemiBold"), fill=ICE,
               anchor="ls", tracking=10, shadow=False)
     name_font = font("bahn", 168, "Bold")
-    draw_text(img, (84, 292), "MAKOGAI", name_font, anchor="ls", tracking=10,
-              gradient_stops=[(0, LACE), (0.4, ICE), (1, VIOLET)], glow=BLUE, glow_radius=24,
+    draw_text(img, NAME_XY, "MAKOGAI", name_font, anchor="ls", tracking=10,
+              gradient_stops=[(0, LACE), (0.35, ICE), (0.7, VIOLET), (1, MAGENTA)], glow=BLUE, glow_radius=24,
               glow_strength=1.3)
-    draw_text(img, (94, 360), "Male  •  Software Engineer", font("bahn", 50, "SemiBold"), fill=LACE,
-              anchor="ls", tracking=2)
-    tags = ["RE:ZERO DEVOTEE", "457 ANIME", "359 MANGA"]
-    x = 94
-    for t in tags:
-        tf = font("bahn", 28, "SemiBold")
-        width = int(sum(tf.getlength(c) for c in t) + 4 * (len(t) - 1)) + 40
-        pill = Image.new("RGBA", (width, 54), (0, 0, 0, 0))
-        ImageDraw.Draw(pill).rounded_rectangle((0, 0, width - 1, 53), 27, fill=rgba(INDIGO, 200),
-                                               outline=rgba(ICE, 180), width=2)
-        img.alpha_composite(pill, (x, 392))
-        draw_text(img, (x + width // 2, 429), t, tf, fill=ICE, anchor="ms", tracking=4, shadow=False)
-        x += width + 14
-    d = ImageDraw.Draw(img)
-    ribbon_x(d, 76, 166, 12, MAGENTA, 6)
-    name_mask = text_mask((HW, HH), (84, 292), "MAKOGAI", name_font, "ls", 10)
-    return img, name_mask
+    sub_f = font("bahn", 50, "SemiBold")
+    x, y = 94, 396
+    draw_text(img, (x, y), "Male", sub_f, fill=LACE, anchor="ls", tracking=2)
+    x += sub_f.getlength("Male") + 2 * 3 + 30
+    diamond(ImageDraw.Draw(img), x, y - 18, 10, fill=rgba(MAGENTA))
+    draw_text(img, (x + 30, y), "Software Engineer", sub_f, anchor="ls", tracking=2,
+              gradient_stops=[(0, LACE), (1, MINT)])
+    ribbon_x(ImageDraw.Draw(img), 76, 190, 12, MAGENTA, 6)
+    return img, text_mask((HW, HH), NAME_XY, "MAKOGAI", name_font, "ls", 10)
 
 
 def hero_frames(fps, seconds):
@@ -196,7 +188,7 @@ def hero_frames(fps, seconds):
     size = rng.uniform(1.5, 4.5, P) * depth
     phase = rng.uniform(0, 2 * math.pi, P)
     star = rng.random(P) < 0.25
-    cols = [ICE, LACE, BLUE, LILAC]
+    cols = [ICE, LACE, MAGENTA, MINT]
     col = rng.integers(0, len(cols), P)
     moon = (862, 154)
     nm = np.asarray(name_mask, np.float32) / 255
@@ -204,8 +196,7 @@ def hero_frames(fps, seconds):
     for i in range(n):
         t = i / n  # 0..1 loop phase
         f = base.copy()
-        # moon breathing glow
-        g = Image.new("RGBA", (HW, HH), (0, 0, 0, 0))
+        g = Image.new("RGBA", (HW, HH), (0, 0, 0, 0))  # moon breathing glow
         r = 120 + 18 * math.sin(2 * math.pi * t)
         ImageDraw.Draw(g).ellipse((moon[0] - r, moon[1] - r, moon[0] + r, moon[1] + r),
                                   fill=rgba(ICE, int(40 + 25 * math.sin(2 * math.pi * t))))
@@ -224,13 +215,12 @@ def hero_frames(fps, seconds):
                 d.ellipse((xx - size[k], yy - size[k], xx + size[k], yy + size[k]), fill=rgba(c, a))
         f.alpha_composite(blur_glow(layer, 5, 1.5))
         f.alpha_composite(layer)
-        # shine sweep across the name in the first 40% of the loop
-        if t < 0.4:
+        if t < 0.4:  # shine sweep across the name in the first 40% of the loop
             pos = -300 + (1400 + 300) * (t / 0.4)
             band = np.asarray(shine_band((HW, HH), pos, 70, 0.3, strength=210), np.float32)
             band[..., 3] *= nm
             f.alpha_composite(Image.fromarray(band.astype(np.uint8), "RGBA"))
-        frames.append(finish_card(f))
+        frames.append(finish_card(f, stops=[(0, ICE), (0.5, VIOLET), (1, MAGENTA)]))
     return frames
 
 
@@ -239,12 +229,224 @@ def hero():
     save_anim(frames, "hero.webp", [83] * len(frames), quality=78)
 
 
+# ---------------------------------------------------------------- crossing marquee tapes
+
+def tape_strip(words, text_col, spark_col, th):
+    """One repeat period of tape text: words separated by drawn sparkles."""
+    pieces, widths = [], []
+    for wd in words:
+        f = font("sansjp", 40, "Black") if any(ord(c) >= 0x3000 for c in wd) else font("bahn", 46, "Bold")
+        wlen = int(f.getlength(wd) + 4 * (len(wd) - 1)) + 40
+        pieces.append((wd, f, wlen))
+        widths.append(wlen + 70)
+    period = sum(widths)
+    strip = Image.new("RGBA", (period, th), (0, 0, 0, 0))
+    d = ImageDraw.Draw(strip)
+    x = 0
+    for (wd, f, wlen), wtot in zip(pieces, widths):
+        draw_text(strip, (x + 20, th // 2 + 2), wd, f, fill=text_col, anchor="lm", tracking=4, shadow=False)
+        sparkle(d, x + wlen + 35, th // 2, 18, spark_col)
+        x += wtot
+    return strip, period
+
+
+def tapes():
+    H, th, L = 300, 82, 1640
+    specs = [  # words, tape gradient, text colour, sparkle colour, tilt, direction
+        (["REM", "レム", "BEST GIRL", "鬼がかってますね"], [(0, MAGENTA), (0.5, VIOLET), (1, MAGENTA)], LACE, GOLD, -4.5, 1),
+        (["WELCOME", "ようこそ", "MAKOGAI", "ANIME FOREVER"], [(0, ICE), (0.5, MINT), (1, ICE)], VOID, MAGENTA, 4.0, -1),
+    ]
+    prepared = []
+    for words, stops, tcol, scol, tilt, direction in specs:
+        strip, period = tape_strip(words, tcol, scol, th)
+        reps = math.ceil((L + period) / period) + 1
+        long = Image.new("RGBA", (period * reps, th), (0, 0, 0, 0))
+        for i in range(reps):
+            long.alpha_composite(strip, (i * period, 0))
+        body = gradient(L, th, stops)
+        edge = ImageDraw.Draw(body)
+        edge.rectangle((0, 0, L, 5), fill=rgba(LACE, 120))
+        edge.rectangle((0, th - 6, L, th), fill=rgba(VOID, 90))
+        prepared.append((long, period, body, tilt, direction))
+    n = 30
+    frames = []
+    for i in range(n):
+        f = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        for long, period, body, tilt, direction in prepared:
+            off = int(period * i / n) if direction > 0 else int(period * (n - i) / n) % period
+            t = body.copy()
+            t.alpha_composite(long.crop((off, 0, off + L, th)))
+            r = rotated(t, tilt)
+            shadow = Image.new("RGBA", r.size, (0, 0, 0, 0))
+            shadow.putalpha(r.getchannel("A").point(lambda v: v * 120 // 255))
+            shadow = shadow.filter(ImageFilter.GaussianBlur(10))
+            pos = (W // 2 - r.width // 2, H // 2 - r.height // 2)
+            f.alpha_composite(shadow, (pos[0], pos[1] + 10))
+            f.alpha_composite(r, pos)
+        frames.append(f)
+    save_anim(frames, "tapes.webp", [60] * n, quality=80)
+
+
+# ---------------------------------------------------------------- episode milestones
+
+EPISODES = 9607  # AniList API, November 2026
+TIERS = [  # episodes, tier name, crest colour ramp (None = prismatic), accent colour
+    (1000, "BRONZE", [(0, (30, 15, 8)), (0.4, (140, 75, 35)), (0.7, (215, 140, 80)), (1, (255, 225, 190))],
+     (232, 150, 92)),
+    (2500, "SILVER", [(0, (20, 24, 34)), (0.4, (110, 120, 140)), (0.7, (195, 205, 222)), (1, (255, 255, 255))],
+     (205, 214, 232)),
+    (5000, "GOLD", [(0, (35, 22, 4)), (0.4, (175, 120, 25)), (0.7, (250, 200, 90)), (1, (255, 248, 215))],
+     GOLD),
+    (7500, "PLATINUM", [(0, (10, 25, 40)), (0.4, (70, 150, 200)), (0.7, (160, 230, 255)), (1, (255, 255, 255))],
+     ICE),
+    (10000, "DIAMOND", None, MAGENTA),
+]
+MS_CARD = (300, 470)
+
+
+def crest(ramp, size=230):
+    rgb = np.asarray(Image.open(ART / "crest.png").convert("RGB").resize((size, size), Image.LANCZOS), np.float32)
+    if ramp is not None:
+        return gradient_map(rgb, ramp)
+    # prismatic: white-metal ramp tinted by a diagonal rainbow
+    img = gradient_map(rgb, [(0, (20, 20, 30)), (0.5, (170, 170, 190)), (1, (255, 255, 255))])
+    a = np.asarray(img, np.float32)
+    rb = np.asarray(gradient(size, size, [(0, (255, 120, 150)), (0.3, GOLD), (0.55, MINT), (0.8, BLUE), (1, VIOLET)],
+                             "d"), np.float32)
+    a[..., :3] = np.clip(a[..., :3] * (0.35 + 0.85 * rb[..., :3] / 255), 0, 255)
+    return Image.fromarray(a.astype(np.uint8), "RGBA")
+
+
+def milestone_card(eps, tier, ramp, col):
+    w, h = MS_CARD
+    locked = eps > EPISODES
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    body = gradient(w, h, [(0, rgba(mix(col, VOID, 0.62 if not locked else 0.8), 250)), (1, rgba(VOID, 252))], "v")
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).polygon(chamfer_poly(w, h, 26), fill=255)
+    body.putalpha(m)
+    img.alpha_composite(body)
+    c = crest(ramp)
+    if locked:
+        a = np.asarray(c, np.float32)
+        grey = a[..., :3].mean(axis=2, keepdims=True)
+        a[..., :3] = (a[..., :3] * 0.45 + grey * 0.55) * 0.55
+        c = Image.fromarray(a.astype(np.uint8), "RGBA")
+    img.alpha_composite(c, (w // 2 - 115, 18))
+    if locked:
+        draw_text(img, (w // 2, 140), "", font("icons", 74), fill=LACE, anchor="mm", glow=MAGENTA,
+                  glow_radius=14, shadow=False)
+    draw_text(img, (w // 2, 290), tier, font("bahn", 30, "Bold"), fill=col, anchor="ms", tracking=8, shadow=False)
+    draw_text(img, (w // 2, 368), f"{eps:,}", font("bahn", 78, "Bold Condensed"), anchor="ms",
+              gradient_stops=[(0, LACE), (1, col)], glow=col, glow_radius=12)
+    if not locked:
+        draw_text(img, (w // 2, 406), "EPISODES", font("bahn", 27, "SemiBold"), fill=SILVER, anchor="ms",
+                  tracking=6, shadow=False)
+        uf = font("bahn", 24, "Bold")
+        uw = uf.getlength("UNLOCKED") + 3 * 7
+        draw_text(img, (w // 2 + 16, 446), "UNLOCKED", uf, fill=col, anchor="ms", tracking=3, shadow=False)
+        draw_text(img, (w // 2 + 16 - uw / 2 - 18, 444), "", font("icons", 22), fill=col, anchor="ms",
+                  shadow=False)
+    else:
+        bx0, bx1, by = 34, w - 34, 392
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle((bx0, by, bx1, by + 16), 8, fill=rgba(SILVER, 50))
+        frac = EPISODES / eps
+        bar = gradient(int((bx1 - bx0) * frac), 16, RAINBOW)
+        bar.putalpha(rounded_mask(bar.size, 8))
+        img.alpha_composite(blur_glow(bar, 6, 1.4), (bx0, by))
+        img.alpha_composite(bar, (bx0, by))
+        draw_text(img, (w // 2, 446), f"{EPISODES:,} / {eps:,}  ·  {frac:.0%}", font("bahn", 23, "Bold"),
+                  fill=LACE, anchor="ms", tracking=2, shadow=False)
+    stops = [(0, mix(col, LACE, 0.4)), (1, col)] if not locked else RAINBOW
+    img.alpha_composite(chamfer_frame((w, h), 30, stops, col, inset=3, width=4))
+    return img
+
+
+def milestones():
+    H = 1120
+    bg = panel_base(H, bg="night", focus=(0.3, 0.7), dim=0.9)
+    bg.alpha_composite(particles(bg.size, 60, 41, rmax=8, colours=(GOLD, CORAL, LACE, ICE)))
+    section_title(bg, 66, "ACHIEVEMENTS", "EPISODE MILESTONES", "視聴記録", x=90, align="l", jp_on_label=True,
+                  stops=GOLD_CORAL, glow=CORAL, label_col=GOLD)
+    w, h = MS_CARD
+    xs = [44, 310, 576, 842, 1108]
+    tops = [610, 522, 434, 346, 258]
+    tilts = [-3, 2, -2, 3, -3]
+    cards = [milestone_card(*t) for t in TIERS]
+    # progress trail floating above the cards: done in gold, the rest dashed
+    pts = [(x + w // 2, t - 54) for x, t in zip(xs, tops)]
+    seg = (EPISODES - TIERS[3][0]) / (TIERS[4][0] - TIERS[3][0])
+    here = (pts[3][0] + (pts[4][0] - pts[3][0]) * seg, pts[3][1] + (pts[4][1] - pts[3][1]) * seg)
+    trail = Image.new("RGBA", bg.size, (0, 0, 0, 0))
+    td = ImageDraw.Draw(trail)
+    done = pts[:4] + [here]
+    td.line(done, fill=rgba(GOLD), width=7, joint="curve")
+    steps = 12
+    for i in range(steps):
+        if i % 2 == 0:
+            a = (here[0] + (pts[4][0] - here[0]) * i / steps, here[1] + (pts[4][1] - here[1]) * i / steps)
+            b = (here[0] + (pts[4][0] - here[0]) * (i + 1) / steps, here[1] + (pts[4][1] - here[1]) * (i + 1) / steps)
+            td.line((a, b), fill=rgba(SILVER, 140), width=5)
+    bg.alpha_composite(blur_glow(trail, 8, 1.6))
+    bg.alpha_composite(trail)
+    nd = ImageDraw.Draw(bg)
+    for (px, py), (_, _, _, col) in zip(pts[:4], TIERS):
+        diamond(nd, px, py, 13, fill=rgba(col), outline=rgba(LACE), width=2)
+    diamond(nd, pts[4][0], pts[4][1], 13, fill=rgba(VOID), outline=rgba(MAGENTA), width=3)
+    for c, x, t, a in zip(cards, xs, tops, tilts):
+        r = rotated(c, a)
+        bg.alpha_composite(r, (x + w // 2 - r.width // 2, t + h // 2 - r.height // 2))
+    bg = finish_card(bg, radius=30, stops=GOLD_CORAL, shape="chamfer", glow_col=CORAL)
+
+    # animation: a spark runs along the finished trail, the "you are here" ring pulses,
+    # and a prismatic shimmer crosses the locked card
+    lens = [math.dist(done[i], done[i + 1]) for i in range(len(done) - 1)]
+    total = sum(lens)
+
+    def along(s):
+        for (a, b), ln in zip(zip(done, done[1:]), lens):
+            if s <= ln:
+                return a[0] + (b[0] - a[0]) * s / ln, a[1] + (b[1] - a[1]) * s / ln
+            s -= ln
+        return done[-1]
+
+    locked_card = cards[4]
+    lmask = Image.new("L", locked_card.size, 0)
+    ImageDraw.Draw(lmask).polygon(chamfer_poly(*locked_card.size, 26), fill=255)
+    n = 26
+    frames = []
+    for i in range(n):
+        t = i / n
+        f = bg.copy()
+        fx = Image.new("RGBA", f.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(fx)
+        if t < 0.7:
+            sx, sy = along(total * t / 0.7)
+            d.ellipse((sx - 14, sy - 14, sx + 14, sy + 14), fill=rgba(LACE))
+        rr = 16 + 30 * ((t * 2) % 1)
+        d.ellipse((here[0] - rr, here[1] - rr, here[0] + rr, here[1] + rr), outline=rgba(GOLD, int(255 * (1 - (t * 2) % 1))),
+                  width=4)
+        d.ellipse((here[0] - 11, here[1] - 11, here[0] + 11, here[1] + 11), fill=rgba(GOLD))
+        f.alpha_composite(blur_glow(fx, 7, 1.6))
+        f.alpha_composite(fx)
+        if 0.3 <= t < 0.9:
+            card = locked_card.copy()
+            band = shine_band(card.size, -200 + (card.width + card.height * 0.35 + 400) * (t - 0.3) / 0.6, 70,
+                              colours=((255, 255, 255), GOLD, MINT, MAGENTA), strength=120)
+            band.putalpha(Image.fromarray(np.minimum(np.asarray(band.getchannel("A")), np.asarray(lmask)), "L"))
+            card.alpha_composite(band)
+            r = rotated(card, tilts[4])
+            f.alpha_composite(r, (xs[4] + w // 2 - r.width // 2, tops[4] + h // 2 - r.height // 2))
+        frames.append(f)
+    save_anim(frames, "milestones.webp", [70] * n, quality=80)
+
+
 # ---------------------------------------------------------------- chain separator
 
 def chain():
     orn = Image.open(ART / "orn-morningstar.png").convert("RGB")
     band = orn.crop((0, 410, orn.width, 600)).resize((W, round(190 * W / orn.width)), Image.LANCZOS)
-    h = band.height
     a = np.asarray(band, np.float32)
     lum = a.max(axis=2)
     xs = np.arange(W, dtype=np.float32)
@@ -255,17 +457,17 @@ def chain():
         boost = (lum / 255)[..., None] * pulse[None, :, None] * 1.5
         return black_to_alpha(np.clip(a + np.array(colour, np.float32) * boost, 0, 255))
 
-    # a light runs left to right along the chain, ice blue before the morning star, violet after
+    # a light runs left to right along the chain, ice blue before the morning star, pink after
     n = 18
     frames, durs = [frame(None, ICE)], [1400]
     for i in range(n):
         x = -60 + (W + 120) * i / (n - 1)
-        frames.append(frame(x, ICE if x < W / 2 else LILAC))
+        frames.append(frame(x, ICE if x < W / 2 else MAGENTA))
         durs.append(50)
     save_anim(frames, "sep-chain.webp", durs, quality=80)
 
 
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["cards", "row", "chain", "hero"]
-    for w_ in which:
-        {"cards": cards, "row": cards_row, "chain": chain, "hero": hero}[w_]()
+    jobs = {"hero": hero, "waifu": waifu, "tapes": tapes, "milestones": milestones, "chain": chain}
+    for name in sys.argv[1:] or list(jobs):
+        jobs[name]()

@@ -14,46 +14,29 @@ from common import ROOT
 CDN = "https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@{ref}/profile/"
 YOUTUBE_ID = ""  # set to the song's YouTube video id to add a play-with-sound embed under the visualizer
 
-LOGIA_EPISODES = [
-    "https://i.postimg.cc/rshDSd5k/1000_Episodes_Watched_ReVamp.png",
-    "https://i.postimg.cc/7YWCh2x1/2000_Episodes_Watched_ReVamp.png",
-    "https://i.postimg.cc/Gh1228SV/3000_Episodes_Watched_ReVamp.png",
-    "https://i.postimg.cc/vZ2bWc3Q/4000_Episodes_Watched_ReVamp.png",
-    "https://i.postimg.cc/m265jCf6/5000_Episodes_Watched_ReVampp.png",
-    "https://i.postimg.cc/gjtNMF56/6000_Episodes_Watched_ReVamp.png",
-    "https://i.postimg.cc/cHgbVJRB/7000_Episodes_Watched_ReVamp.png",
-]
-GENRE_CARDS = [
-    "https://i.postimg.cc/ZRZbdWJd/Action-Mastery-Bronze.png",
-    "https://i.postimg.cc/FH3XVhWg/Fantasy-Mastery-Gold.png",
-    "https://i.postimg.cc/T3DfNVwb/Comedy-Mastery-Gold.png",
-    "https://i.postimg.cc/1Rvm8R28/Adventure-Mastery-Silver.png",
-]
 STEAM = "https://steamcommunity.com/id/mrharold0011"
 YOUTUBE = "https://www.youtube.com/c/MareGraphics"
 DISCORD_WIDGET = "https://discord.c99.nl/widget/theme-4/141206144264699904.png"
 
 
 def blocks(a):
-    """a(name) -> URL of a profile asset. Each inner list is one centred ~~~ block."""
+    """a(name) -> URL of a profile asset. Each inner list is one centred ~~~ block; images inside a block
+    sit tight, between blocks AniList adds paragraph spacing, so grouping varies the page rhythm."""
     yt = [f"youtube({YOUTUBE_ID})"] if YOUTUBE_ID else []
+
+    def img(name):
+        return f"img720({a(name)})"
+
     return [
-        [f"img720({a('hero.webp')})", f"img720({a('sep-chain.webp')})"],
-        [f"img720({a('intro.webp')})", f"img720({a('sep-lace.webp')})"],
-        [f"img720({a('stats.webp')})", f"img720({a('sep-sigil.webp')})"],
-        [f"img720({a('top3.webp')})", f"img720({a('sep-lace.webp')})"],
-        [f"img720({a('firsts.webp')})", f"img720({a('sep-chain.webp')})"],
-        [f"img720({a('head-waifu.webp')})", f"img720({a('waifu-row.webp')})", f"img720({a('sep-sigil.webp')})"],
-        [f"img720({a('head-music.webp')})", f"webm({a('nowplaying.webm')})", *yt, f"img720({a('sep-lace.webp')})"],
-        [f"img720({a('head-milestones.webp')})"],
-        ["Episode milestone cards by __[Logia](https://anilist.co/user/Logia)__"],
-        [" ".join(f"img120({u})" for u in LOGIA_EPISODES)],
-        [f"img720({a('sep-sigil.webp')})", f"img720({a('head-genres.webp')})"],
-        [" ".join(f"img120({u})" for u in GENRE_CARDS)],
-        [f"img720({a('sep-chain.webp')})", f"img720({a('head-socials.webp')})"],
+        [img("hero.webp"), img("tapes.webp")],
+        [img("intro.webp"), img("sep-lace.webp"), img("stats.webp")],
+        [img("top3.webp"), img("sep-sigil.webp"), img("firsts.webp")],
+        [img("sep-chain.webp"), img("waifu.webp"), f"webm({a('nowplaying.webm')})", *yt],
+        [img("sep-lace.webp"), img("milestones.webp"), img("genres.webp")],
+        [img("tapes.webp")],
         [f"[img250({a('social-steam.webp')})]({STEAM}) [img250({a('social-youtube.webp')})]({YOUTUBE})"],
         [f"img420({DISCORD_WIDGET})"],
-        [f"img720({a('footer.webp')})"],
+        [img("footer.webp")],
     ]
 
 
