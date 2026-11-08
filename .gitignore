@@ -1,0 +1,16 @@
+# the song and anything rendered with its audio stay local
+music.mp3
+export/
+
+# re-downloadable / generated caches
+build/covers/
+__pycache__/
+
+# old profile images, superseded by profile/
+animecards-*.png
+banner.gif
+header.jpg
+intro.png
+stats.png
+top3.png
+profile-pic.png
