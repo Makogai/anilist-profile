@@ -69,10 +69,13 @@ def soft_glow_spot(img, box, col, alpha, blur):
 
 # ---------------------------------------------------------------- intro
 
+SUN = [(0, (255, 240, 160)), (0.5, GOLD), (1, (255, 150, 60))]  # 向日葵 section
+
+
 def intro():
-    H = 1180
+    H = 1330
     img = panel_base(H, focus=(0.2, 0.5))
-    soft_glow_spot(img, (-200, 700, 500, 1300), MAGENTA, 70, 120)
+    soft_glow_spot(img, (-200, 300, 400, 800), MAGENTA, 50, 120)
     rem = Image.open(ART / "intro-rem.png").convert("RGBA")
     rh = 1280
     rem = rem.resize((round(rem.width * rh / rem.height), rh), Image.LANCZOS)
@@ -85,7 +88,7 @@ def intro():
     soft_glow_spot(img, (900, 80, 1420, 600), VIOLET, 90, 90)
     soft_glow_spot(img, (1000, 500, 1500, 1000), MINT, 50, 110)
     img.alpha_composite(rem, (W - rem.width + 70, 10))
-    sp = particles(img.size, 70, 7, rmax=9, colours=(ICE, MAGENTA, LACE, MINT))
+    sp = particles(img.size, 70, 7, rmax=9, colours=(ICE, MAGENTA, GOLD, MINT))
     a = np.asarray(sp.getchannel("A"), np.float32)
     a[:, :840] *= 0.25  # keep sparkles mostly off the text column
     sp.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
@@ -102,24 +105,30 @@ def intro():
     ], 40, 760, 58)
 
     y = section_title(img, end + 44, "PROFILE  //  02", "FAVORITE KANJI", "好きな漢字", x=x, align="l",
-                      jp_on_label=True, stops=MINT_PINK, glow=VIOLET, label_col=MINT)
-    sx, sy, ss = x, y + 30, 230
-    seal = Image.new("RGBA", (ss, ss), (0, 0, 0, 0))
-    ImageDraw.Draw(seal).rounded_rectangle((0, 0, ss - 1, ss - 1), 30, fill=rgba(SATIN, 230))
-    frame = card_frame((ss + 40, ss + 40), 34, 5, MINT_PINK, MAGENTA, 20)
+                      jp_on_label=True, stops=SUN, glow=GOLD, label_col=GOLD)
+    # 向日葵 (himawari, sunflower) written vertically in a tall golden seal
+    sx, sy, sw, sh = x, y + 30, 210, 470
+    soft_glow_spot(img, (sx - 120, sy - 60, sx + sw + 260, sy + sh + 80), GOLD, 60, 90)
+    seal = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
+    ImageDraw.Draw(seal).rounded_rectangle((0, 0, sw - 1, sh - 1), 30, fill=rgba(SATIN, 235))
     img.alpha_composite(seal, (sx, sy))
-    img.alpha_composite(frame, (sx - 20, sy - 20))
-    draw_text(img, (sx + ss // 2, sy + ss // 2 - 14), "愛", font("serifjp", 150, "Black"),
-              anchor="mm", gradient_stops=ICE_PINK, glow=MAGENTA, glow_radius=18)
-    draw_text(img, (sx + ss // 2, sy + ss - 28), "あい", font("sansjp", 26, "Medium"), fill=SILVER,
+    img.alpha_composite(card_frame((sw + 40, sh + 40), 34, 5, SUN, GOLD, 20), (sx - 20, sy - 20))
+    for i, ch in enumerate("向日葵"):
+        draw_text(img, (sx + sw // 2, sy + 96 + i * 124), ch, font("serifjp", 112, "Black"), anchor="mm",
+                  gradient_stops=SUN, glow=GOLD, glow_radius=16)
+    draw_text(img, (sx + sw // 2, sy + sh - 30), "ひまわり", font("sansjp", 26, "Medium"), fill=SILVER,
               anchor="mm", tracking=6, shadow=False)
-    ribbon_x(ImageDraw.Draw(img), sx + ss - 4, sy + 4, 12, MAGENTA, 6)
-    draw_rich(img, sx + ss + 50, sy + 6, [
-        ("My favorite kanji is", False, LACE), ("愛.", True, MAGENTA), ("It's read as", False, LACE),
-        ("\"ai\"", True, ICE), ("meaning", False, LACE), ("\"Love\".", True, MAGENTA),
-        ("I like it because love drives us and the kanji itself is so amazing looking!", False, LACE),
+    flower = Image.open(ART / "sunflower.png").convert("RGB")
+    sticker = black_to_alpha(np.asarray(flower.resize((130, 130), Image.LANCZOS), np.float32), floor=12)
+    img.alpha_composite(sticker, (sx + sw - 70, sy - 62))
+    cy = draw_rich(img, sx + sw + 50, sy + 10, [
+        ("My favorite kanji is", False, LACE), ("向日葵.", True, GOLD), ("It's read as", False, LACE),
+        ("\"himawari\",", True, GOLD), ("meaning", False, LACE), ("\"Sunflower\".", True, GOLD),
+        ("I like it because it's just so pretty!", False, LACE),
     ], 36, 410, 52)
-    save(finish_card(img, stops=ICE_PINK), "intro.webp")
+    big = black_to_alpha(np.asarray(flower.resize((230, 230), Image.LANCZOS), np.float32), floor=12)
+    img.alpha_composite(big, (sx + sw + 40, max(cy + 6, sy + sh - 230)))
+    save(finish_card(img, stops=[(0, ICE), (0.5, MAGENTA), (1, GOLD)]), "intro.webp")
 
 
 # ---------------------------------------------------------------- stats ("tech" chamfered card)
@@ -276,7 +285,7 @@ def firsts():
         ("fmab.jpg", "#1", "FIRST ANIME", "FMA: Brotherhood", BLUE, 6, 200, 0),
         ("redo.jpg", "#1", "FIRST MANGA", "Redo of Healer", VIOLET, -4, 540, 60),
         ("rezero.jpg", "FAV", "FAVORITE ANIME", "Re:Zero", MAGENTA, 3, 890, 10),
-        ("solo.jpg", "FAV", "FAVORITE MANGA", "Solo Leveling", MINT, -7, 1235, 70),
+        ("eleceed.jpg", "FAV", "FAVORITE MANGA", "Eleceed", MINT, -7, 1235, 70),
     ]
     base_cy = y + 330
     for f, mark, label, title, col, angle, cx, dy in items:
@@ -316,26 +325,26 @@ def genre_hex(img, cx, cy, r, name, count, col, emblem):
     gl.putalpha(ring)
     img.alpha_composite(blur_glow(gl, 18, 2.0))
     img.alpha_composite(fill)
-    art = Image.open(ART / f"genre-{emblem}.png").convert("RGB").resize((210, 210), Image.LANCZOS)
-    img.alpha_composite(black_to_alpha(np.asarray(art, np.float32), floor=12), (cx - 105, cy - 196))
+    art = Image.open(ART / f"genre-{emblem}.png").convert("RGB").resize((196, 196), Image.LANCZOS)
+    img.alpha_composite(black_to_alpha(np.asarray(art, np.float32), floor=12), (cx - 98, cy - 206))
     g = gradient(w, h, [(0, mix(col, LACE, 0.5)), (1, col)], "d")
     g.putalpha(ring)
     img.alpha_composite(g)
-    draw_text(img, (cx, cy + 58), name, font("bahn", 50, "Bold"), fill=LACE, anchor="ms", tracking=4)
+    draw_text(img, (cx, cy + 34), name, font("bahn", 50, "Bold"), fill=LACE, anchor="ms", tracking=4)
     num_f, lab_f = font("bahn", 60, "Bold Condensed"), font("bahn", 28, "SemiBold")
     num, lab = str(count), "  TITLES"
     total = num_f.getlength(num) + lab_f.getlength(lab)
     x0 = cx - total / 2
-    draw_text(img, (x0, cy + 116), num, num_f, fill=col, anchor="ls", glow=col, glow_radius=10)
-    draw_text(img, (x0 + num_f.getlength(num), cy + 116), lab, lab_f, fill=SILVER, anchor="ls", shadow=False)
+    draw_text(img, (x0, cy + 92), num, num_f, fill=col, anchor="ls", glow=col, glow_radius=10)
+    draw_text(img, (x0 + num_f.getlength(num), cy + 92), lab, lab_f, fill=SILVER, anchor="ls", shadow=False)
     # rank as tracked text between two diamonds: a chip would poke out of the narrowing hex
     rank = rank_for(count)
     rf = font("bahn", 27, "Bold")
     rw = rf.getlength(rank) + 5 * (len(rank) - 1)
-    draw_text(img, (cx, cy + 158), rank, rf, fill=mix(col, LACE, 0.35), anchor="ms", tracking=5, shadow=False)
+    draw_text(img, (cx, cy + 134), rank, rf, fill=mix(col, LACE, 0.35), anchor="ms", tracking=5, shadow=False)
     d = ImageDraw.Draw(img)
-    for sx in (cx - rw / 2 - 22, cx + rw / 2 + 22):
-        diamond(d, sx, cy + 148, 7, fill=rgba(col))
+    for sx in (cx - rw / 2 - 20, cx + rw / 2 + 20):
+        diamond(d, sx, cy + 124, 6, fill=rgba(col))
 
 
 def genres():
@@ -377,9 +386,9 @@ def separator_sigil():
     d = ImageDraw.Draw(img)
     for dx in (-300, -200, 200, 300):
         diamond(d, W // 2 + dx, cy, 7, fill=rgba(MINT if dx < 0 else MAGENTA))
-    diamond(d, W // 2, cy, 34, fill=rgba(VOID, 255), outline=rgba(ICE), width=3)
-    draw_text(img, (W // 2, cy + 2), "愛", font("serifjp", 34, "Black"), anchor="mm",
-              gradient_stops=ICE_PINK, glow=MAGENTA, glow_radius=8, shadow=False)
+    diamond(d, W // 2, cy, 36, fill=rgba(VOID, 255), outline=rgba(GOLD), width=3)
+    flower = Image.open(ART / "sunflower.png").convert("RGB").resize((58, 58), Image.LANCZOS)
+    img.alpha_composite(black_to_alpha(np.asarray(flower, np.float32), floor=12), (W // 2 - 29, cy - 29))
     save(img, "sep-sigil.webp", quality=92)
 
 
