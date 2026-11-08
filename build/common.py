@@ -33,25 +33,44 @@ CORAL = (255, 91, 121)
 GOLD = (255, 205, 96)
 MINT = (46, 230, 200)
 
-FONTS = Path("C:/Windows/Fonts")
+# Windows fonts first; build/fonts holds the OFL Noto JP fonts the GitHub Action downloads, because
+# the Windows runner has Bahnschrift and Segoe but not Noto JP (and only the older icon font).
+FONT_DIRS = [Path("C:/Windows/Fonts"), ROOT / "build" / "fonts"]
+FONT_FILES = {  # first file found wins
+    "bahn": ["bahnschrift.ttf"],
+    "segoe": ["segoeui.ttf"],
+    "segoeb": ["segoeuib.ttf"],
+    "serifjp": ["NotoSerifJP-VF.ttf", "NotoSerifJP[wght].ttf"],
+    "sansjp": ["NotoSansJP-VF.ttf", "NotoSansJP[wght].ttf"],
+    "icons": ["SegoeIcons.ttf", "segmdl2.ttf"],
+}
+
+
+@lru_cache(maxsize=None)
+def font_path(name: str) -> Path:
+    for fname in FONT_FILES[name]:
+        for d in FONT_DIRS:
+            if (d / fname).exists():
+                return d / fname
+    raise FileNotFoundError(f"no font for {name!r}: tried {FONT_FILES[name]} in {[str(d) for d in FONT_DIRS]}")
 
 
 @lru_cache(maxsize=None)
 def font(name: str, size: int, style: str | None = None) -> ImageFont.FreeTypeFont:
-    """name: 'bahn', 'segoe', 'segoeb', 'serifjp', 'sansjp'. style: variation name."""
-    files = {
-        "bahn": "bahnschrift.ttf",
-        "segoe": "segoeui.ttf",
-        "segoeb": "segoeuib.ttf",
-        "segoesb": "seguisb.ttf",
-        "serifjp": "NotoSerifJP-VF.ttf",
-        "sansjp": "NotoSansJP-VF.ttf",
-        "icons": "SegoeIcons.ttf",
-    }
-    f = ImageFont.truetype(str(FONTS / files[name]), size)
+    """name: 'bahn', 'segoe', 'segoeb', 'serifjp', 'sansjp', 'icons'. style: variation name."""
+    f = ImageFont.truetype(str(font_path(name)), size)
     if style:
         f.set_variation_by_name(style)
     return f
+
+
+STATS = ROOT / "data" / "stats.json"
+
+
+def load_stats() -> dict:
+    """AniList numbers written by build/fetch_stats.py (refreshed daily by the GitHub Action)."""
+    import json
+    return json.loads(STATS.read_text(encoding="utf-8"))
 
 
 def rgba(c, a=255):

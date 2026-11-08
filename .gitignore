@@ -14,3 +14,6 @@ __pycache__/
 /stats.png
 /top3.png
 /profile-pic.png
+
+# Noto JP fonts the GitHub Action downloads (OFL, not committed)
+build/fonts/

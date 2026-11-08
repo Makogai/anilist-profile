@@ -14,8 +14,8 @@ from PIL import Image, ImageDraw, ImageFilter
 from common import (ART, BLUE, CORAL, COVERS, GOLD, ICE, ICE_PINK, INDIGO, LACE, LILAC, MAGENTA, MINT,
                     MINT_PINK, RAINBOW, SATIN, SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow,
                     card_frame, cover, diamond, draw_rich, draw_text, finish_card, font, glass, gradient,
-                    mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask, save, section_title,
-                    sparkle)
+                    gradient_map, load_stats, mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask,
+                    save, section_title, sparkle)
 
 
 # ---------------------------------------------------------------- shared pieces
@@ -54,7 +54,7 @@ def arc_gauge(img, c, r, value, stops, width=14, label=None):
                width=width)
     img.alpha_composite(blur_glow(seg, 8, 1.3))
     img.alpha_composite(seg)
-    draw_text(img, (x, y + 6), f"{value:.1f}", font("bahn", 52, "Bold Condensed"), anchor="mm",
+    draw_text(img, (x, y + 6), one_decimal(value), font("bahn", 52, "Bold Condensed"), anchor="mm",
               fill=LACE, shadow=False)
     if label:
         draw_text(img, (x, y + r + 34), label, font("bahn", 28, "SemiBold"), fill=SILVER,
@@ -158,17 +158,38 @@ def draw_intro_text(img):
 
 # ---------------------------------------------------------------- stats ("tech" chamfered card)
 
+def one_decimal(v):
+    """84.65 -> '84.7' (half up, like AniList shows it; plain format() would give 84.6 for the float)."""
+    from decimal import ROUND_HALF_UP, Decimal
+    return str(Decimal(str(v)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+
+def updated_label(stats_):
+    import datetime
+    d = datetime.date.fromisoformat(stats_["updated"])
+    return f"updated {d.day} {d:%b %Y}"
+
+
 def stats():
+    """Numbers come from data/stats.json, refreshed daily by the GitHub Action."""
+    st = load_stats()
+    an, mg = st["anime"], st["manga"]
+
+    def top3(genres_):
+        return " · ".join(g["genre"] for g in genres_[:3])
+
     H = 830
     img = panel_base(H, bg="aurora", focus=(0.5, 0.5), dim=0.7)
     img.alpha_composite(particles(img.size, 50, 11, rmax=8, colours=(MINT, MAGENTA, LACE, ICE)))
     y = section_title(img, 70, "ANILIST ARCHIVE", "STATISTICS", "統計", stops=MINT_PINK, glow=MINT,
                       label_col=MINT)
     panels = [
-        (80, MINT, (MINT, BLUE), "ANIME", "457", [("9,607", "EPISODES"), ("158.9", "DAYS WATCHED")],
-         84.7, "Action · Fantasy · Adventure"),
-        (744, MAGENTA, (MAGENTA, VIOLET), "MANGA", "359", [("23,094", "CHAPTERS"), ("64", "CHAPTERS / TITLE")],
-         93.8, "Action · Fantasy · Adventure"),
+        (80, MINT, (MINT, BLUE), "ANIME", f"{an['count']:,}",
+         [(f"{an['episodes']:,}", "EPISODES"), (f"{an['minutes'] / 1440:.1f}", "DAYS WATCHED")],
+         an["mean"], top3(an["genres"])),
+        (744, MAGENTA, (MAGENTA, VIOLET), "MANGA", f"{mg['count']:,}",
+         [(f"{mg['chapters']:,}", "CHAPTERS"), (str(round(mg["chapters"] / max(mg["count"], 1))), "CHAPTERS / TITLE")],
+         mg["mean"], top3(mg["genres"])),
     ]
     for px, tint, stops, kind, big, rows, score, genres in panels:
         top, w, h = y + 30, 616, 520
@@ -198,8 +219,8 @@ def stats():
         else:
             d.rounded_rectangle((cx - 8, yy - 14, cx + 8, yy + 14), 8, outline=rgba(SILVER, 170), width=3)
     sparkle(d, cx, y + 265, 22, LACE)
-    draw_text(img, (W // 2, H - 30), "snapshot  ·  November 2026", font("segoe", 26), fill=(150, 160, 190),
-              anchor="ms", shadow=False)
+    draw_text(img, (W // 2, H - 30), f"{updated_label(st)}  ·  refreshes daily", font("segoe", 26),
+              fill=(150, 160, 190), anchor="ms", shadow=False)
     save(finish_card(img, radius=30, stops=MINT_PINK, shape="chamfer", glow_col=MINT), "stats.webp")
 
 
@@ -321,13 +342,26 @@ def firsts():
 
 # ---------------------------------------------------------------- genre mastery (honeycomb)
 
-GENRES = [  # name, anime count, colour, emblem file; counts from the AniList API (Nov 2026)
-    ("FANTASY", 287, VIOLET, "fantasy"),
-    ("ACTION", 292, CORAL, "action"),
-    ("ADVENTURE", 207, MINT, "adventure"),
-    ("COMEDY", 204, GOLD, "comedy"),
-    ("DRAMA", 152, MAGENTA, "drama"),
-]
+# AniList genre -> colour. The emblem is art/genre-<slug>.png; genres without one get the crest,
+# recoloured in the genre's colour.
+GENRE_COLOURS = {
+    "Action": CORAL, "Fantasy": VIOLET, "Adventure": MINT, "Comedy": GOLD, "Drama": MAGENTA,
+    "Romance": (255, 140, 180), "Slice of Life": ICE, "Supernatural": (155, 140, 255), "Sci-Fi": BLUE,
+}
+
+
+def genre_slug(name):
+    return "".join(c if c.isalnum() else "-" for c in name.lower()).replace("--", "-")
+
+
+def genre_emblem(name, col, size=196):
+    path = ART / f"genre-{genre_slug(name)}.png"
+    if path.exists():
+        art = Image.open(path).convert("RGB").resize((size, size), Image.LANCZOS)
+        return black_to_alpha(np.asarray(art, np.float32), floor=12)
+    crest = Image.open(ART / "crest.png").convert("RGB").resize((size, size), Image.LANCZOS)
+    return gradient_map(np.asarray(crest, np.float32),
+                        [(0, mix(col, VOID, 0.8)), (0.5, col), (1, mix(col, LACE, 0.7))])
 
 
 def rank_for(count):
@@ -338,7 +372,7 @@ def hex_points(cx, cy, r):
     return [(cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))) for a in range(-90, 270, 60)]
 
 
-def genre_hex(img, cx, cy, r, name, count, col, emblem):
+def genre_hex(img, cx, cy, r, name, count, col):
     w, h = img.size
     mask = Image.new("L", (w, h), 0)
     ImageDraw.Draw(mask).polygon(hex_points(cx, cy, r), fill=255)
@@ -350,12 +384,14 @@ def genre_hex(img, cx, cy, r, name, count, col, emblem):
     gl.putalpha(ring)
     img.alpha_composite(blur_glow(gl, 18, 2.0))
     img.alpha_composite(fill)
-    art = Image.open(ART / f"genre-{emblem}.png").convert("RGB").resize((196, 196), Image.LANCZOS)
-    img.alpha_composite(black_to_alpha(np.asarray(art, np.float32), floor=12), (cx - 98, cy - 206))
+    img.alpha_composite(genre_emblem(name, col), (cx - 98, cy - 206))
     g = gradient(w, h, [(0, mix(col, LACE, 0.5)), (1, col)], "d")
     g.putalpha(ring)
     img.alpha_composite(g)
-    draw_text(img, (cx, cy + 34), name, font("bahn", 50, "Bold"), fill=LACE, anchor="ms", tracking=4)
+    label, size = name.upper(), 50
+    while font("bahn", size, "Bold").getlength(label) + 4 * (len(label) - 1) > 320:  # "SLICE OF LIFE" etc.
+        size -= 2
+    draw_text(img, (cx, cy + 34), label, font("bahn", size, "Bold"), fill=LACE, anchor="ms", tracking=4)
     num_f, lab_f = font("bahn", 60, "Bold Condensed"), font("bahn", 28, "SemiBold")
     num, lab = str(count), "  TITLES"
     total = num_f.getlength(num) + lab_f.getlength(lab)
@@ -373,6 +409,9 @@ def genre_hex(img, cx, cy, r, name, count, col, emblem):
 
 
 def genres():
+    """Top 5 anime genres from data/stats.json: #1 top centre, #2 and #3 beside it, #4 and #5 below."""
+    st = load_stats()
+    top = st["anime"]["genres"][:5]
     H = 1120
     img = panel_base(H, bg="aurora", focus=(0.9, 0.5), dim=0.7)
     img.alpha_composite(particles(img.size, 60, 17, rmax=8, colours=(CORAL, GOLD, MINT, VIOLET, MAGENTA)))
@@ -383,12 +422,12 @@ def genres():
     gap = 34
     top_cy = y + 36 + r
     row2_cy = top_cy + int(1.5 * r) + gap
-    spots = [(720 - hw - gap, top_cy), (720, top_cy), (720 + hw + gap, top_cy),
+    spots = [(720, top_cy), (720 - hw - gap, top_cy), (720 + hw + gap, top_cy),
              (720 - hw / 2 - gap / 2, row2_cy), (720 + hw / 2 + gap / 2, row2_cy)]
-    for (cx, cy), (name, count, col, emblem) in zip(spots, GENRES):
-        genre_hex(img, int(cx), int(cy), r, name, count, col, emblem)
-    draw_text(img, (W // 2, H - 34), "top 5 anime genres by titles watched  ·  November 2026", font("segoe", 26),
-              fill=(150, 160, 190), anchor="ms", shadow=False)
+    for (cx, cy), g in zip(spots, top):
+        genre_hex(img, int(cx), int(cy), r, g["genre"], g["count"], GENRE_COLOURS.get(g["genre"], SILVER))
+    draw_text(img, (W // 2, H - 34), f"top 5 anime genres by titles watched  ·  {updated_label(st)}",
+              font("segoe", 26), fill=(150, 160, 190), anchor="ms", shadow=False)
     save(finish_card(img, stops=RAINBOW, glow_col=VIOLET), "genres.webp")
 
 

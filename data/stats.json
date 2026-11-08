@@ -1,0 +1,90 @@
+{
+  "anime": {
+    "count": 457,
+    "episodes": 9607,
+    "minutes": 228749,
+    "mean": 84.65,
+    "genres": [
+      {
+        "genre": "Action",
+        "count": 292
+      },
+      {
+        "genre": "Fantasy",
+        "count": 287
+      },
+      {
+        "genre": "Adventure",
+        "count": 207
+      },
+      {
+        "genre": "Comedy",
+        "count": 204
+      },
+      {
+        "genre": "Drama",
+        "count": 152
+      },
+      {
+        "genre": "Romance",
+        "count": 140
+      },
+      {
+        "genre": "Slice of Life",
+        "count": 89
+      },
+      {
+        "genre": "Supernatural",
+        "count": 80
+      },
+      {
+        "genre": "Sci-Fi",
+        "count": 59
+      },
+      {
+        "genre": "Ecchi",
+        "count": 54
+      },
+      {
+        "genre": "Mystery",
+        "count": 39
+      },
+      {
+        "genre": "Psychological",
+        "count": 37
+      }
+    ]
+  },
+  "manga": {
+    "count": 359,
+    "chapters": 23094,
+    "mean": 93.75,
+    "genres": [
+      {
+        "genre": "Action",
+        "count": 300
+      },
+      {
+        "genre": "Fantasy",
+        "count": 277
+      },
+      {
+        "genre": "Adventure",
+        "count": 173
+      },
+      {
+        "genre": "Drama",
+        "count": 82
+      },
+      {
+        "genre": "Comedy",
+        "count": 62
+      },
+      {
+        "genre": "Romance",
+        "count": 52
+      }
+    ]
+  },
+  "updated": "2026-11-08"
+}

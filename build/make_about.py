@@ -3,7 +3,9 @@
   python build/make_about.py <git-ref>
 
 Assets are served by jsDelivr from this repo. Pin <git-ref> to a commit SHA so jsDelivr's cache
-never serves a stale file after an update.
+never serves a stale file after an update. The panels the daily GitHub Action re-renders (refresh.LIVE)
+are served from main on raw.githubusercontent.com instead (5-minute cache), so AniList shows fresh
+numbers without re-pasting the About text.
 """
 import html
 import re
@@ -12,6 +14,8 @@ import sys
 from common import ROOT
 
 CDN = "https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@{ref}/profile/"
+RAW_MAIN = "https://raw.githubusercontent.com/Makogai/anilist-profile/main/profile/"
+LIVE = ["stats.webp", "genres.webp", "milestones.webp"]  # keep in sync with refresh.LIVE
 YOUTUBE_ID = ""  # set to the song's YouTube video id to add a play-with-sound embed under the visualizer
 
 STEAM = "https://steamcommunity.com/id/mrharold0011"
@@ -78,7 +82,10 @@ def to_html(bl):
 
 def main():
     ref = sys.argv[1] if len(sys.argv) > 1 else "main"
-    (ROOT / "about.md").write_text(to_markdown(blocks(lambda n: CDN.format(ref=ref) + n)), encoding="utf-8")
+    def url(name):
+        return RAW_MAIN + name if name in LIVE else CDN.format(ref=ref) + name
+
+    (ROOT / "about.md").write_text(to_markdown(blocks(url)), encoding="utf-8")
     (ROOT / "preview.html").write_text(to_html(blocks(lambda n: "profile/" + n)), encoding="utf-8")
     print(f"about.md (assets @ {ref}) and preview.html written")
 

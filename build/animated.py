@@ -14,7 +14,7 @@ import panels
 from common import (ART, BLUE, CORAL, GOLD, GOLD_CORAL, ICE, LACE, LILAC, MAGENTA, MINT, OUT, RAINBOW, SATIN,
                     SILVER, VIOLET, VOID, W, black_to_alpha, blur_glow, card_finisher, card_frame,
                     chamfer_frame, chamfer_poly, cover, diamond, draw_text, finish_card, font, gradient,
-                    gradient_map, mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask,
+                    gradient_map, load_stats, mix, panel_base, particles, rgba, ribbon_x, rotated, rounded_mask,
                     section_title, sparkle, text_mask)
 from live import Animator, blend_eyes, blink_amount, ellipse_mask, hsv_mask, locate_change, to_np, to_pil
 
@@ -355,7 +355,6 @@ def tapes():
 
 # ---------------------------------------------------------------- episode milestones
 
-EPISODES = 9607  # AniList API, November 2026
 TIERS = [  # episodes, tier name, crest colour ramp (None = prismatic), accent colour
     (1000, "BRONZE", [(0, (30, 15, 8)), (0.4, (140, 75, 35)), (0.7, (215, 140, 80)), (1, (255, 225, 190))],
      (232, 150, 92)),
@@ -366,7 +365,17 @@ TIERS = [  # episodes, tier name, crest colour ramp (None = prismatic), accent c
     (7500, "PLATINUM", [(0, (10, 25, 40)), (0.4, (70, 150, 200)), (0.7, (160, 230, 255)), (1, (255, 255, 255))],
      ICE),
     (10000, "DIAMOND", None, MAGENTA),
+    (15000, "MYTHIC", [(0, (30, 8, 30)), (0.4, (150, 40, 120)), (0.7, (240, 110, 200)), (1, (255, 225, 245))],
+     CORAL),
+    (20000, "LEGEND", None, GOLD),
 ]
+
+
+def milestone_window(episodes):
+    """The five tiers to show: they end at the first tier not reached yet (or the last five)."""
+    k = next((i for i, t in enumerate(TIERS) if t[0] > episodes), len(TIERS) - 1)
+    start = min(max(0, k - 4), len(TIERS) - 5)
+    return TIERS[start:start + 5]
 MS_CARD = (300, 470)
 
 
@@ -383,9 +392,9 @@ def crest(ramp, size=230):
     return Image.fromarray(a.astype(np.uint8), "RGBA")
 
 
-def milestone_card(eps, tier, ramp, col):
+def milestone_card(eps, tier, ramp, col, episodes):
     w, h = MS_CARD
-    locked = eps > EPISODES
+    locked = eps > episodes
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     body = gradient(w, h, [(0, rgba(mix(col, VOID, 0.62 if not locked else 0.8), 250)), (1, rgba(VOID, 252))], "v")
     m = Image.new("L", (w, h), 0)
@@ -417,12 +426,12 @@ def milestone_card(eps, tier, ramp, col):
         bx0, bx1, by = 34, w - 34, 392
         d = ImageDraw.Draw(img)
         d.rounded_rectangle((bx0, by, bx1, by + 16), 8, fill=rgba(SILVER, 50))
-        frac = EPISODES / eps
+        frac = episodes / eps
         bar = gradient(int((bx1 - bx0) * frac), 16, RAINBOW)
         bar.putalpha(rounded_mask(bar.size, 8))
         img.alpha_composite(blur_glow(bar, 6, 1.4), (bx0, by))
         img.alpha_composite(bar, (bx0, by))
-        draw_text(img, (w // 2, 446), f"{EPISODES:,} / {eps:,}  ·  {frac:.0%}", font("bahn", 23, "Bold"),
+        draw_text(img, (w // 2, 446), f"{episodes:,} / {eps:,}  ·  {int(frac * 100)}%", font("bahn", 23, "Bold"),
                   fill=LACE, anchor="ms", tracking=2, shadow=False)
     stops = [(0, mix(col, LACE, 0.4)), (1, col)] if not locked else RAINBOW
     img.alpha_composite(chamfer_frame((w, h), 30, stops, col, inset=3, width=4))
@@ -430,6 +439,9 @@ def milestone_card(eps, tier, ramp, col):
 
 
 def milestones():
+    """Episode count from data/stats.json, refreshed daily by the GitHub Action."""
+    episodes = load_stats()["anime"]["episodes"]
+    tiers = milestone_window(episodes)
     H = 1120
     bg = panel_base(H, bg="night", focus=(0.3, 0.7), dim=0.9)
     bg.alpha_composite(particles(bg.size, 60, 41, rmax=8, colours=(GOLD, CORAL, LACE, ICE)))
@@ -439,27 +451,37 @@ def milestones():
     xs = [44, 310, 576, 842, 1108]
     tops = [610, 522, 434, 346, 258]
     tilts = [-3, 2, -2, 3, -3]
-    cards = [milestone_card(*t) for t in TIERS]
-    # progress trail floating above the cards: done in gold, the rest dashed
+    cards = [milestone_card(*t, episodes) for t in tiers]
+    # progress trail floating above the cards: reached part in gold, the rest dashed
     pts = [(x + w // 2, t - 54) for x, t in zip(xs, tops)]
-    seg = (EPISODES - TIERS[3][0]) / (TIERS[4][0] - TIERS[3][0])
-    here = (pts[3][0] + (pts[4][0] - pts[3][0]) * seg, pts[3][1] + (pts[4][1] - pts[3][1]) * seg)
+    j = sum(t[0] <= episodes for t in tiers)  # index of the first locked card (5 = all reached)
+    if j == len(tiers):
+        here = pts[-1]
+        done = list(pts)
+    else:
+        prev_thr = tiers[j - 1][0] if j else 0
+        seg = (episodes - prev_thr) / (tiers[j][0] - prev_thr)
+        a_ = pts[j - 1] if j else (pts[0][0] - 120, pts[0][1] + 40)
+        here = (a_[0] + (pts[j][0] - a_[0]) * seg, a_[1] + (pts[j][1] - a_[1]) * seg)
+        done = pts[:j] + [here]
     trail = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     td = ImageDraw.Draw(trail)
-    done = pts[:4] + [here]
-    td.line(done, fill=rgba(GOLD), width=7, joint="curve")
+    if len(done) > 1:
+        td.line(done, fill=rgba(GOLD), width=7, joint="curve")
     steps = 12
-    for i in range(steps):
-        if i % 2 == 0:
-            a = (here[0] + (pts[4][0] - here[0]) * i / steps, here[1] + (pts[4][1] - here[1]) * i / steps)
-            b = (here[0] + (pts[4][0] - here[0]) * (i + 1) / steps, here[1] + (pts[4][1] - here[1]) * (i + 1) / steps)
+    for p0, p1 in zip([here] + pts[j:], pts[j:]):  # dashes from "you are here" through the locked tiers
+        for i in range(0, steps, 2):
+            a = (p0[0] + (p1[0] - p0[0]) * i / steps, p0[1] + (p1[1] - p0[1]) * i / steps)
+            b = (p0[0] + (p1[0] - p0[0]) * (i + 1) / steps, p0[1] + (p1[1] - p0[1]) * (i + 1) / steps)
             td.line((a, b), fill=rgba(SILVER, 140), width=5)
     bg.alpha_composite(blur_glow(trail, 8, 1.6))
     bg.alpha_composite(trail)
     nd = ImageDraw.Draw(bg)
-    for (px, py), (_, _, _, col) in zip(pts[:4], TIERS):
-        diamond(nd, px, py, 13, fill=rgba(col), outline=rgba(LACE), width=2)
-    diamond(nd, pts[4][0], pts[4][1], 13, fill=rgba(VOID), outline=rgba(MAGENTA), width=3)
+    for i, ((px, py), (_, _, _, col)) in enumerate(zip(pts, tiers)):
+        if i < j:
+            diamond(nd, px, py, 13, fill=rgba(col), outline=rgba(LACE), width=2)
+        else:
+            diamond(nd, px, py, 13, fill=rgba(VOID), outline=rgba(MAGENTA), width=3)
     for c, x, t, a in zip(cards, xs, tops, tilts):
         r = rotated(c, a)
         bg.alpha_composite(r, (x + w // 2 - r.width // 2, t + h // 2 - r.height // 2))
@@ -477,7 +499,8 @@ def milestones():
             s -= ln
         return done[-1]
 
-    locked_card = cards[4]
+    shimmer_i = min(j, len(tiers) - 1)  # the next tier to reach shimmers (the last one once all are reached)
+    locked_card = cards[shimmer_i]
     lmask = Image.new("L", locked_card.size, 0)
     ImageDraw.Draw(lmask).polygon(chamfer_poly(*locked_card.size, 26), fill=255)
     n = 26
@@ -502,8 +525,11 @@ def milestones():
                               colours=((255, 255, 255), GOLD, MINT, MAGENTA), strength=120)
             band.putalpha(Image.fromarray(np.minimum(np.asarray(band.getchannel("A")), np.asarray(lmask)), "L"))
             card.alpha_composite(band)
-            r = rotated(card, tilts[4])
-            f.alpha_composite(r, (xs[4] + w // 2 - r.width // 2, tops[4] + h // 2 - r.height // 2))
+            r = rotated(card, tilts[shimmer_i])
+            f.alpha_composite(r, (xs[shimmer_i] + w // 2 - r.width // 2, tops[shimmer_i] + h // 2 - r.height // 2))
+            for c, x, tp, a in list(zip(cards, xs, tops, tilts))[shimmer_i + 1:]:  # keep later cards on top
+                r = rotated(c, a)
+                f.alpha_composite(r, (x + w // 2 - r.width // 2, tp + h // 2 - r.height // 2))
         frames.append(f)
     save_anim(frames, "milestones.webp", [70] * n, quality=80)
 
