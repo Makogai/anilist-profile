@@ -38,7 +38,9 @@ def blocks(a):
         [img("sep-chain.webp"), img("waifu.webp"), f"webm({a('nowplaying.webm')})", *yt],
         [img("sep-lace.webp"), img("milestones.webp"), img("genres.webp")],
         [img("tapes.webp")],
-        [f"[img250({a('social-steam.webp')})]({STEAM}) [img250({a('social-youtube.webp')})]({YOUTUBE})"],
+        # the spaces inside [ ... ] matter: AniList's img rule is greedy up to the last ")" before
+        # whitespace, so "[img250(url)](link)" swallows "](link" into the image URL (see ANILIST_IMG)
+        [f"[ img250({a('social-steam.webp')}) ]({STEAM}) [ img250({a('social-youtube.webp')}) ]({YOUTUBE})"],
         [f"img420({DISCORD_WIDGET})"],
         [img("footer.webp")],
     ]
@@ -48,11 +50,16 @@ def to_markdown(bl):
     return "\n".join("~~~\n" + "\n".join(lines) + "\n~~~" for lines in bl) + "\n"
 
 
+# AniList's own image rule, copied from anilist.co's markdownHtml(); the preview uses it so parsing
+# quirks show up locally instead of on the live profile
+ANILIST_IMG = re.compile(r"img\s?(\d+%?)?\s?\((.[\S]+)\)", re.I)
+
+
 def to_html(bl):
     def line(s):
         s = html.escape(s, quote=False)
-        s = re.sub(r"\[img(\d+)\(([^)]+)\)\]\(([^)]+)\)", r'<a href="\3"><img width="\1" src="\2"></a>', s)
-        s = re.sub(r"img(\d+)\(([^)]+)\)", r'<img width="\1" src="\2">', s)
+        s = ANILIST_IMG.sub(r'<img width="\1" src="\2">', s)
+        s = re.sub(r"\[\s*(<img [^>]+>)\s*\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', s)
         s = re.sub(r"webm\(([^)]+)\)", r'<video src="\1" muted autoplay loop controls></video>', s)
         s = re.sub(r"youtube\(([^)]+)\)", r'<iframe width="480" height="270" src="https://www.youtube.com/embed/\1"></iframe>', s)
         s = re.sub(r"__\[([^\]]+)\]\(([^)]+)\)__", r'<b><a href="\2">\1</a></b>', s)

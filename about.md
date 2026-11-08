@@ -26,7 +26,7 @@ img720(https://raw.githubusercontent.com/Makogai/anilist-profile/main/profile/ge
 img720(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@4e93c18f57b341cb9a8356274d55e61359057b25/profile/tapes.webp)
 ~~~
 ~~~
-[img250(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@4e93c18f57b341cb9a8356274d55e61359057b25/profile/social-steam.webp)](https://steamcommunity.com/id/mrharold0011) [img250(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@4e93c18f57b341cb9a8356274d55e61359057b25/profile/social-youtube.webp)](https://www.youtube.com/c/MareGraphics)
+[ img250(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@4e93c18f57b341cb9a8356274d55e61359057b25/profile/social-steam.webp) ](https://steamcommunity.com/id/mrharold0011) [ img250(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@4e93c18f57b341cb9a8356274d55e61359057b25/profile/social-youtube.webp) ](https://www.youtube.com/c/MareGraphics)
 ~~~
 ~~~
 img420(https://discord.c99.nl/widget/theme-4/141206144264699904.png)
