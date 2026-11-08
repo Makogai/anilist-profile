@@ -17,6 +17,7 @@ in midnight blue and violet with mint, pink and gold accents. Assets are served 
    click-to-play `youtube()` embed under the visualizer.
 
 Open [`preview.html`](preview.html) locally to see the page in a mock of AniList's About column before posting.
+[`old-profile.txt`](old-profile.txt) keeps the previous About text for reference.
 
 ## What's in it
 
