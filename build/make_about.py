@@ -1,4 +1,5 @@
-"""Write about.md (paste into AniList -> Settings -> About) and preview.html (local look-alike).
+"""Write about.md (paste into AniList -> Settings -> About) and preview.html (local look-alike), plus
+waifus.md / preview-waifus.html for the side waifu collection (not part of the main About page).
 
   python build/make_about.py <git-ref>
 
@@ -12,6 +13,7 @@ import re
 import sys
 
 from common import ROOT
+from waifus import PYRAMID, RANKS, SUB, WAIFUS
 
 CDN = "https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@{ref}/profile/"
 RAW_MAIN = "https://raw.githubusercontent.com/Makogai/anilist-profile/main/profile/"
@@ -46,6 +48,15 @@ def blocks(a):
     ]
 
 
+def waifu_blocks(a):
+    """Side collection: header plus the card pyramid, one line per row (AniList keeps line breaks), card
+    width set by the row's rank."""
+    rank_of = {w[0]: w[4] for w in WAIFUS}
+    rows = [" ".join(f"img{RANKS[rank_of[k]]['out'] // 2}({a(f'{SUB}card-{k}.webp')})" for k in row)
+            for row in PYRAMID]
+    return [[f"img720({a(SUB + 'waifu-head.webp')})", *rows]]
+
+
 def to_markdown(bl):
     return "\n".join("~~~\n" + "\n".join(lines) + "\n~~~" for lines in bl) + "\n"
 
@@ -55,7 +66,7 @@ def to_markdown(bl):
 ANILIST_IMG = re.compile(r"img\s?(\d+%?)?\s?\((.[\S]+)\)", re.I)
 
 
-def to_html(bl):
+def to_html(bl, title="Makogai profile preview"):
     def line(s):
         s = html.escape(s, quote=False)
         s = ANILIST_IMG.sub(r'<img width="\1" src="\2">', s)
@@ -67,7 +78,7 @@ def to_html(bl):
     body = "\n".join('<div class="c">' + "<br>".join(line(x) for x in lines) + "</div>" for lines in bl)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Makogai profile preview</title>
+<title>{title}</title>
 <style>
   /* mimics AniList's profile About box: ~514 px column, dark theme */
   body {{ margin: 0; background: #0b1622; font: 14px/1.5 Overpass, "Segoe UI", sans-serif; color: #9fadbd; }}
@@ -94,7 +105,10 @@ def main():
 
     (ROOT / "about.md").write_text(to_markdown(blocks(url)), encoding="utf-8")
     (ROOT / "preview.html").write_text(to_html(blocks(lambda n: "profile/" + n)), encoding="utf-8")
-    print(f"about.md (assets @ {ref}) and preview.html written")
+    (ROOT / "waifus.md").write_text(to_markdown(waifu_blocks(url)), encoding="utf-8")
+    (ROOT / "preview-waifus.html").write_text(to_html(waifu_blocks(lambda n: "profile/" + n), "Waifu collection"),
+                                              encoding="utf-8")
+    print(f"about.md + waifus.md (assets @ {ref}), preview.html + preview-waifus.html written")
 
 
 if __name__ == "__main__":
