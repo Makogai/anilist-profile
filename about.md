@@ -16,6 +16,7 @@ img720(https://makogai.github.io/anilist-profile/profile/firsts.webp)
 img720(https://makogai.github.io/anilist-profile/profile/sep-chain.webp)
 img720(https://makogai.github.io/anilist-profile/profile/waifu.webp)
 webm(https://makogai.github.io/anilist-profile/profile/nowplaying.webm)
+[ img420(https://makogai.github.io/anilist-profile/profile/play-sound.webp) ](https://makogai.github.io/anilist-profile/profile/rem-visualizer-full.mp4)
 ~~~
 ~~~
 img720(https://makogai.github.io/anilist-profile/profile/sep-lace.webp)

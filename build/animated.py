@@ -2,7 +2,7 @@
 hero banner and About me (living Rem: hair sway, blink, wave), waifu fan, crossing marquee tapes,
 episode-milestone staircase and the chain separator.
 
-Run: python build/animated.py [hero|intro|waifu|tapes|milestones|chain]
+Run: python build/animated.py [hero|intro|waifu|tapes|milestones|chain|play]
 """
 import math
 import sys
@@ -534,6 +534,53 @@ def milestones():
     save_anim(frames, "milestones.webp", [70] * n, quality=80)
 
 
+# ---------------------------------------------------------------- "play with sound" button
+
+def play_button():
+    """Button under the muted visualizer loop; about.md links it to the full video with sound. A pulsing
+    ring around the play icon and bouncing equalizer bars make it read as clickable."""
+    bw, bh, m = 1000, 190, 26          # plate size and glow margin
+    w, h = bw + 2 * m, bh + 2 * m
+    base = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    body = gradient(bw, bh, [(0, rgba((40, 24, 80), 245)), (0.6, rgba(VOID, 250)), (1, rgba((24, 30, 70), 245))], "d")
+    body.putalpha(rounded_mask((bw, bh), bh // 2))
+    base.alpha_composite(body, (m, m))
+    base.alpha_composite(card_frame((w, h), bh // 2, 4, [(0, ICE), (0.5, VIOLET), (1, MAGENTA)], MAGENTA,
+                                    inset=m - 12))
+    cx, cy, r = m + 100, h // 2, 60
+    disc = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(disc).ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
+    g = gradient(w, h, [(0, ICE), (0.5, BLUE), (1, VIOLET)], "d")
+    g.putalpha(disc)
+    base.alpha_composite(blur_glow(g, 14, 1.4))
+    base.alpha_composite(g)
+    ImageDraw.Draw(base).polygon([(cx - 18, cy - 30), (cx - 18, cy + 30), (cx + 32, cy)], fill=rgba(LACE))
+    draw_text(base, (m + 196, cy + 6), "PLAY WITH SOUND", font("bahn", 66, "Bold"), anchor="ls", tracking=6,
+              gradient_stops=[(0, LACE), (0.4, ICE), (1, MAGENTA)], glow=VIOLET, glow_radius=12)
+    draw_text(base, (m + 200, cy + 50), "FULL SONG  ·  3:44  ·  OPENS THE VIDEO", font("bahn", 28, "SemiBold"),
+              fill=SILVER, anchor="ls", tracking=4, shadow=False)
+    eq_x, eq_base = m + bw - 140, cy + 34
+    n = 16
+    frames = []
+    for i in range(n):
+        t = i / n
+        f = base.copy()
+        fx = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(fx)
+        for off in (0.0, 0.5):  # two rings expanding from the play disc and fading out
+            u = (t + off) % 1
+            rr = r + 8 + 34 * u
+            d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), outline=rgba(ICE, int(220 * (1 - u))), width=4)
+        for k in range(5):  # equalizer bars
+            hh = 18 + 46 * (0.5 + 0.5 * math.sin(2 * math.pi * (t * 2 + k * 0.23)))
+            col = mix(ICE, MAGENTA, k / 4)
+            d.rounded_rectangle((eq_x + k * 22, eq_base - hh, eq_x + k * 22 + 12, eq_base), 5, fill=rgba(col))
+        f.alpha_composite(blur_glow(fx, 6, 1.4))
+        f.alpha_composite(fx)
+        frames.append(f)
+    save_anim(frames, "play-sound.webp", [80] * n, quality=86)
+
+
 # ---------------------------------------------------------------- chain separator
 
 def chain():
@@ -561,6 +608,6 @@ def chain():
 
 if __name__ == "__main__":
     jobs = {"hero": hero, "intro": intro, "waifu": waifu, "tapes": tapes, "milestones": milestones,
-            "chain": chain}
+            "chain": chain, "play": play_button}
     for name in sys.argv[1:] or list(jobs):
         jobs[name]()

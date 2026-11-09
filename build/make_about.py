@@ -13,6 +13,7 @@ from common import ROOT
 from waifus import PYRAMID, RANKS, SUB, WAIFUS
 
 PAGES = "https://makogai.github.io/anilist-profile/profile/"
+FULL_VIDEO = PAGES + "rem-visualizer-full.mp4"  # full song with sound; AniList's webm() always starts muted
 YOUTUBE_ID = ""  # set to the song's YouTube video id to add a play-with-sound embed under the visualizer
 
 STEAM = "https://steamcommunity.com/id/mrharold0011"
@@ -32,7 +33,8 @@ def blocks(a):
         [img("hero.webp"), img("tapes.webp")],
         [img("intro.webp"), img("sep-lace.webp"), img("stats.webp")],
         [img("top3.webp"), img("sep-sigil.webp"), img("firsts.webp")],
-        [img("sep-chain.webp"), img("waifu.webp"), f"webm({a('nowplaying.webm')})", *yt],
+        [img("sep-chain.webp"), img("waifu.webp"), f"webm({a('nowplaying.webm')})", *yt,
+         f"[ img420({a('play-sound.webp')}) ]({FULL_VIDEO})"],
         [img("sep-lace.webp"), img("milestones.webp"), img("genres.webp")],
         [img("tapes.webp")],
         # the spaces inside [ ... ] matter: AniList's img rule is greedy up to the last ")" before

@@ -13,9 +13,10 @@ in midnight blue and violet with mint, pink and gold accents. Assets are served 
 3. **Avatar:** upload [`profile/avatar.png`](profile/avatar.png) (Rem, blue ring) or
    [`profile/avatar-sunflower.png`](profile/avatar-sunflower.png) (Rem with her sunflower, gold ring) in
    *Settings → Avatar*. Both are transparent PNGs.
-4. **Sound (optional):** AniList's `webm()` always plays muted, so the visualizer is silent on the page. For sound,
-   put the song's YouTube video id in `YOUTUBE_ID` in `build/make_about.py` and regenerate `about.md`. That adds a
-   click-to-play `youtube()` embed under the visualizer.
+4. **Sound:** AniList's `webm()` always plays muted, so the visualizer loop is silent on the page. The animated
+   **PLAY WITH SOUND** button under it (`profile/play-sound.webp`) links to the full video with the song,
+   [`profile/rem-visualizer-full.mp4`](profile/rem-visualizer-full.mp4), served by GitHub Pages. To embed a YouTube
+   upload instead, put its video id in `YOUTUBE_ID` in `build/make_about.py` and regenerate `about.md`.
 
 Open [`preview.html`](preview.html) locally to see the page in a mock of AniList's About column before posting.
 [`old-profile.txt`](old-profile.txt) keeps the previous About text for reference.
