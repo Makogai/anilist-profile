@@ -1,0 +1,7 @@
+~~~
+img720(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/waifu-head.webp)
+img220(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-rem.webp)
+img200(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-zerotwo.webp) img200(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-iroha.webp)
+img160(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-mai.webp) img160(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-emilia.webp) img160(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-raphtalia.webp)
+img120(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-hori.webp) img120(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-yukino.webp) img120(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-horikita.webp) img120(https://cdn.jsdelivr.net/gh/Makogai/anilist-profile@3b97c126530a4ef132bdb75d72fef4b0441e7ad9/profile/waifus/card-shiro.webp)
+~~~

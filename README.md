@@ -36,6 +36,20 @@ show them and commits:
 without re-pasting. Everything else stays pinned to a commit on jsDelivr. The Action commits to `main`, so run
 `git pull` before working locally.
 
+## Side piece: waifu collection
+
+[`waifus.md`](waifus.md) is a separate snippet, not part of the main About page: ten animated rank cards
+in [`profile/waifus/`](profile/waifus/) under a header with the rank legend, arranged as a pyramid with
+higher ranks bigger. Paste it into the About text wherever you want it.
+
+| Rank | Cards | Look |
+|---|---|---|
+| LR Legendary | Rem | Dark prismatic border with two comets orbiting it, a crown, light rays and a magenta-gold aura, holo foil, drifting petals |
+| UR Ultra Rare | Zero Two, Iroha Igarashi | Rainbow border and aura cycling around the card, holo foil sweep, star twinkles |
+| SSR | Mai Sakurajima, Emilia, Raphtalia | Brushed-gold border with corner medallions, pulsing gold glow, rising glitter |
+| SR Super Rare | Kyouko Hori, Yukino Yukinoshita | Amethyst border with gem studs, violet shine |
+| R Rare | Suzune Horikita, Shiro | Sapphire border, shine sweep and twinkles |
+
 ## What's in it
 
 | Section | File(s) | Notes |
@@ -77,6 +91,7 @@ python fetch_covers.py        # official cover art from the AniList API -> build
 python fetch_stats.py         # AniList numbers -> data/stats.json (refresh.py = this + re-render the live panels)
 python panels.py              # static panels, separators, socials, footer
 python animated.py            # hero, about me, waifu fan, tapes, milestones, chain separator
+python waifus.py             # side collection: header + the ten rank cards in profile/waifus/
 python visualizer.py loop     # profile/nowplaying.webm (needs ../music.mp3, which is git-ignored)
 python visualizer.py full     # optional: export/rem-visualizer-full.mp4, 1080p with audio for YouTube
 python extras.py              # banner + avatars
@@ -87,7 +102,7 @@ python make_about.py <commit-sha>
 
 - Character art, backgrounds, ornaments, the milestone crest and the genre emblems in `art/` were generated with
   OpenAI Codex image generation as fan art. Rem and Re:Zero belong to Tappei Nagatsuki / Kadokawa, Zero Two to
-  Trigger / A-1 Pictures / CloverWorks, and Iroha Igarashi (3D Kanojo: Real Girl) to Mao Nanami / Kodansha.
+  Trigger / A-1 Pictures / CloverWorks, and every other character to her creators and publishers. The waifu portraits were drawn from each character's AniList design.
 - Cover art comes from AniList.
 - Design spec: [`design/PLAN.md`](design/PLAN.md), written by Codex (the first version of the layout; the page has
   since moved to in-panel titles and more varied shapes).
