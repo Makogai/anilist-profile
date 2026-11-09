@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waifu Collection · Makogai</title>
+<meta name="description" content="Makogai's animated waifu card collection, ranked from Rare to Legendary.">
+<meta name="theme-color" content="#090b18">
+<link rel="icon" href="profile/avatar.png">
+<meta property="og:title" content="Waifu Collection · Makogai">
+<meta property="og:description" content="Animated waifu cards, ranked from Rare to Legendary.">
+<meta property="og:image" content="profile/waifus/hd/card-rem.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* The collection reads profile/waifus/waifus.json (written by build/waifus.py), so new cards show up
+     here as soon as they are pushed. Palette matches the profile art. */
+  :root {
+    color-scheme: dark;
+    --void: #090b18;
+    --indigo: #151a3d;
+    --blue: #32b8f2;
+    --ice: #8eebff;
+    --violet: #8257ff;
+    --magenta: #f05aa6;
+    --mint: #2ee6c8;
+    --gold: #ffcd60;
+    --lace: #f5f4ff;
+    --silver: #aab6d5;
+    --muted: #7c87ad;
+    --line: rgba(170, 182, 213, 0.18);
+    --gutter: clamp(16px, 4vw, 48px);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--void); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--lace);
+    font: 500 17px/1.5 "Rajdhani", system-ui, sans-serif;
+    background:
+      radial-gradient(60rem 40rem at 10% -10%, rgba(130, 87, 255, 0.28), transparent 60%),
+      radial-gradient(50rem 36rem at 95% 10%, rgba(240, 90, 166, 0.20), transparent 60%),
+      radial-gradient(60rem 40rem at 50% 110%, rgba(46, 230, 200, 0.12), transparent 60%),
+      var(--void);
+    overflow-x: hidden;
+  }
+  #stars { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+  .wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); }
+  a { color: var(--ice); }
+  :focus-visible { outline: 2px solid var(--ice); outline-offset: 3px; border-radius: 6px; }
+
+  /* header */
+  .hero { text-align: center; padding: clamp(48px, 9vw, 96px) 0 24px; }
+  .eyebrow { margin: 0; color: var(--magenta); font-weight: 700; letter-spacing: 0.4em; font-size: 14px; }
+  h1 { margin: 6px 0 0; line-height: 1; font-weight: 700; letter-spacing: 0.06em; font-size: clamp(40px, 8vw, 92px); }
+  h1 .title {
+    background: linear-gradient(90deg, var(--magenta), var(--violet) 50%, var(--mint));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(240, 90, 166, 0.35));
+  }
+  h1 .jp { display: inline-block; font: 700 0.36em "Noto Serif JP", serif; color: #c6a7ff; vertical-align: 0.9em; letter-spacing: 0; }
+  .lede { margin: 18px auto 0; max-width: 34em; color: var(--silver); font-size: 18px; }
+  .tally { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 0; margin: 24px 0 0; }
+  .tally li { display: flex; align-items: center; gap: 8px; color: var(--silver); font-weight: 600; }
+
+  /* rank chip, styled like the badges on the cards */
+  .chip {
+    display: inline-grid; place-items: center; min-width: 46px; height: 30px; padding: 0 10px;
+    font-weight: 700; letter-spacing: 0.08em; font-size: 16px; color: #11131d;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  }
+  .chip[data-dark] { background: linear-gradient(135deg, #190c2d, #3c1959); }
+  .chip[data-dark] span { background: linear-gradient(90deg, var(--c1), var(--c2), var(--c3, var(--c2))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .chip[data-rank="SR"] { color: var(--lace); }
+  .stars { color: var(--c2); letter-spacing: 2px; font-size: 14px; }
+
+  /* controls */
+  .controls {
+    position: sticky; top: 0; z-index: 5; margin: 32px 0 8px; padding: 12px 0;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    background: linear-gradient(var(--void) 70%, transparent);
+  }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filters button, .sort select {
+    font: 600 15px "Rajdhani", sans-serif; letter-spacing: 0.06em; color: var(--silver);
+    background: rgba(21, 26, 61, 0.7); border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; cursor: pointer; transition: color .2s, border-color .2s, background .2s;
+  }
+  .filters button:hover { color: var(--lace); border-color: rgba(142, 235, 255, 0.5); }
+  .filters button[aria-pressed="true"] { color: var(--void); background: var(--ice); border-color: var(--ice); }
+  .filters button .n { opacity: .7; margin-left: 4px; }
+  .sort { display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; }
+  .sort select { border-radius: 8px; padding: 6px 10px; }
+
+  /* rank sections and the card grid */
+  .group { margin: 36px 0 12px; }
+  .group-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .group-head h2 { margin: 0; font-size: 22px; letter-spacing: 0.18em; font-weight: 700; color: var(--lace); }
+  .group-head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--c2), transparent); opacity: .6; }
+  .grid { display: grid; justify-content: center; gap: clamp(12px, 2.5vw, 28px);
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--w)), var(--w))); }
+  .grid[data-rank="LR"] { --w: clamp(240px, 78vw, 380px); }
+  .grid[data-rank="UR"] { --w: clamp(220px, 70vw, 310px); }
+  .grid[data-rank="SSR"] { --w: clamp(140px, 43vw, 260px); }
+  .grid[data-rank="SR"], .grid[data-rank="R"], .grid[data-rank="all"] { --w: clamp(140px, 43vw, 230px); }
+
+  .tile {
+    all: unset; display: block; cursor: pointer; text-align: center; border-radius: 18px;
+    perspective: 900px;
+  }
+  .tilt {
+    position: relative; display: block; transform-style: preserve-3d;
+    transition: transform .45s cubic-bezier(.2, .8, .2, 1), filter .3s;
+  }
+  .tilt img { display: block; width: 100%; height: auto; }
+  .glare {
+    position: absolute; inset: 5.2% 7.4%; border-radius: 6%; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at var(--gx, 50%) var(--gy, 30%), rgba(255, 255, 255, .45), transparent 45%);
+    mix-blend-mode: overlay; transition: opacity .3s;
+  }
+  .tile:hover .tilt, .tile:focus-visible .tilt { filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .5)) drop-shadow(0 0 22px var(--glow)); }
+  .tile:hover .glare { opacity: 1; }
+  .caption { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; letter-spacing: 0.08em; }
+  .caption b { color: var(--silver); font: 700 15px "Noto Serif JP", serif; margin-right: 6px; letter-spacing: 0; }
+
+  .status { text-align: center; color: var(--silver); padding: 48px 0; }
+
+  /* viewer */
+  dialog {
+    width: min(980px, calc(100vw - 2 * 16px)); max-height: calc(100vh - 32px); padding: 0; border: 0;
+    color: var(--lace); background: linear-gradient(160deg, #141a3e, #0b0d1e 60%); border-radius: 22px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 1px var(--line), 0 0 60px -10px var(--glow, var(--violet));
+  }
+  dialog::backdrop { background: rgba(5, 6, 14, .78); backdrop-filter: blur(6px); }
+  .viewer { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 24px; }
+  .viewer .stage { perspective: 1100px; }
+  .viewer .stage .tilt img { max-height: calc(100vh - 120px); width: auto; max-width: 100%; margin: 0 auto; }
+  .info { padding: 8px 12px 8px 4px; }
+  .info .jp { font: 700 28px "Noto Serif JP", serif; color: #c6a7ff; margin: 14px 0 0; }
+  .info h2 { margin: 0; font-size: clamp(40px, 6vw, 64px); line-height: 1; letter-spacing: 0.06em; font-weight: 700;
+             background: linear-gradient(90deg, var(--lace), var(--c1) 60%, var(--c2)); -webkit-background-clip: text;
+             background-clip: text; color: transparent; }
+  .info .series { color: var(--silver); letter-spacing: 0.14em; font-weight: 600; margin: 10px 0 0; }
+  .info .rankline { display: flex; align-items: center; gap: 12px; margin-top: 18px; color: var(--silver); font-weight: 600; letter-spacing: .1em; }
+  .info .rankline .stars { font-size: 18px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .btn {
+    font: 700 15px "Rajdhani", sans-serif; letter-spacing: .1em; text-decoration: none; cursor: pointer;
+    color: var(--void); background: linear-gradient(90deg, var(--ice), var(--blue)); border: 0; border-radius: 999px; padding: 10px 18px;
+  }
+  .btn.ghost { color: var(--silver); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+  .btn.ghost:hover { color: var(--lace); }
+  .close { position: absolute; top: 12px; right: 14px; width: 40px; height: 40px; border-radius: 50%; border: 0;
+           background: rgba(255, 255, 255, .06); color: var(--lace); font-size: 22px; cursor: pointer; }
+  .close:hover { background: rgba(255, 255, 255, .12); }
+
+  footer { position: relative; z-index: 1; text-align: center; color: var(--muted); font-size: 15px; padding: 56px 16px 40px; }
+  footer p { margin: 4px 0; }
+
+  @media (max-width: 720px) {
+    .viewer { grid-template-columns: 1fr; padding: 56px 16px 20px; }
+    .viewer .stage .tilt img { max-height: 58vh; }
+    .info { padding: 0 4px; text-align: center; }
+    .info .rankline, .actions { justify-content: center; }
+    .controls { justify-content: center; position: static; }  /* sticky would cover too much of a phone screen */
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tilt, .glare, .filters button { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="stars" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">MAKOGAI&nbsp;//&nbsp;CHARACTER FILES</p>
+    <h1><span class="title">WAIFU COLLECTION</span> <span class="jp">俺の嫁</span></h1>
+    <p class="lede" id="lede">Loading the collection…</p>
+    <ul class="tally" id="tally" aria-label="Cards per rank"></ul>
+  </header>
+
+  <nav class="controls" aria-label="Filter and sort">
+    <div class="filters" id="filters" role="group" aria-label="Filter by rank"></div>
+    <label class="sort">SORT
+      <select id="sort">
+        <option value="rank">Rank</option>
+        <option value="name">Name</option>
+        <option value="series">Series</option>
+      </select>
+    </label>
+  </nav>
+
+  <main id="collection" aria-live="polite"><p class="status">Summoning cards…</p></main>
+</div>
+
+<footer>
+  <p>Cards live in <a href="https://github.com/Makogai/anilist-profile/tree/main/profile/waifus">profile/waifus</a> and show up here as soon as they are added.</p>
+  <p><a href="https://anilist.co/user/Makogai">Makogai on AniList</a> · Fan art; every character belongs to her creators.</p>
+</footer>
+
+<dialog id="viewer" aria-labelledby="v-name">
+  <button class="close" id="v-close" aria-label="Close">×</button>
+  <div class="viewer">
+    <div class="stage"><div class="tilt" id="v-tilt"><img id="v-img" alt=""><span class="glare"></span></div></div>
+    <div class="info">
+      <p class="jp" id="v-jp"></p>
+      <h2 id="v-name"></h2>
+      <p class="series" id="v-series"></p>
+      <div class="rankline"><span class="chip" id="v-chip"><span></span></span><span id="v-rankname"></span><span class="stars" id="v-stars"></span></div>
+      <div class="actions">
+        <a class="btn" id="v-anilist" target="_blank" rel="noopener">VIEW ON ANILIST ↗</a>
+        <button class="btn ghost" id="v-prev" aria-label="Previous card">← PREV</button>
+        <button class="btn ghost" id="v-next" aria-label="Next card">NEXT →</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const BASE = "profile/waifus/";
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, props = {}, ...kids) => {
+    const n = Object.assign(document.createElement(tag), props);
+    for (const k of kids) n.append(k);
+    return n;
+  };
+
+  let data, ranks, order = [], filter = "all", sort = "rank", shown = [];
+
+  // ---- starfield
+  const canvas = $("stars"), ctx = canvas.getContext("2d");
+  let stars = [];
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.round(innerWidth * innerHeight / 9000);
+    stars = Array.from({ length: n }, () => ({
+      x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: Math.random() * 1.4 + 0.3,
+      p: Math.random() * Math.PI * 2, s: 0.6 + Math.random() * 1.6,
+      c: ["#f5f4ff", "#8eebff", "#c6a7ff", "#f05aa6"][Math.floor(Math.random() * 4)],
+    }));
+    if (reduceMotion) draw(0);
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    for (const s of stars) {
+      ctx.globalAlpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(s.p + t / 1000 * s.s));
+      ctx.fillStyle = s.c;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+    }
+    if (!reduceMotion) requestAnimationFrame(draw);
+  }
+  addEventListener("resize", resize);
+  resize();
+  if (!reduceMotion) requestAnimationFrame(draw);
+
+  // ---- rank styling helpers
+  const rankVars = (rk) => {
+    const c = ranks[rk].colours;
+    return { "--c1": c[0], "--c2": c[Math.min(1, c.length - 1)], "--c3": c[c.length - 1], "--glow": ranks[rk].glow };
+  };
+  const applyVars = (node, vars) => { for (const [k, v] of Object.entries(vars)) node.style.setProperty(k, v); };
+  function chip(rk, node = el("span", { className: "chip" }, el("span"))) {
+    node.dataset.rank = rk;
+    if (rk === "LR" || rk === "UR") node.dataset.dark = ""; else delete node.dataset.dark;
+    node.firstElementChild.textContent = rk;
+    applyVars(node, rankVars(rk));
+    return node;
+  }
+  const starText = (rk) => "★".repeat(ranks[rk].level);
+
+  // ---- pointer tilt + glare
+  function tilt(target, area = target) {
+    if (reduceMotion) return;
+    const glare = target.querySelector(".glare");
+    area.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "touch") return;
+      const r = target.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      target.style.transform = `rotateX(${(0.5 - y) * 14}deg) rotateY(${(x - 0.5) * 18}deg) scale(1.03)`;
+      glare.style.setProperty("--gx", `${x * 100}%`);
+      glare.style.setProperty("--gy", `${y * 100}%`);
+    });
+    area.addEventListener("pointerleave", () => { target.style.transform = ""; });
+  }
+
+  // ---- collection
+  function tile(w) {
+    const img = el("img", { src: BASE + w.hd, width: w.size[0], height: w.size[1], loading: "lazy", decoding: "async", alt: "" });
+    const t = el("span", { className: "tilt" }, img, el("span", { className: "glare" }));
+    const b = el("button", { className: "tile", type: "button" },
+      t, el("span", { className: "caption" }, el("b", { textContent: w.jp }), w.series));
+    b.setAttribute("aria-label", `${w.name}, ${ranks[w.rank].name.toLowerCase()}, ${w.series}`);
+    applyVars(b, rankVars(w.rank));
+    b.addEventListener("click", () => open(w.key));
+    tilt(t, b);
+    return b;
+  }
+
+  function render() {
+    const main = $("collection");
+    main.replaceChildren();
+    shown = data.waifus.filter((w) => filter === "all" || w.rank === filter);
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    if (sort === "name") shown.sort(byName);
+    if (sort === "series") shown.sort((a, b) => a.series.localeCompare(b.series) || byName(a, b));
+    if (sort === "rank") shown.sort((a, b) => ranks[b.rank].level - ranks[a.rank].level);
+    if (!shown.length) { main.append(el("p", { className: "status", textContent: "No cards of this rank yet." })); return; }
+
+    if (sort === "rank") {
+      for (const rk of order) {
+        const cards = shown.filter((w) => w.rank === rk);
+        if (!cards.length) continue;
+        const head = el("div", { className: "group-head" }, chip(rk),
+          el("h2", { textContent: ranks[rk].name }), el("span", { className: "stars", textContent: starText(rk) }),
+          el("span", { className: "rule" }));
+        applyVars(head, rankVars(rk));
+        const grid = el("div", { className: "grid" }, ...cards.map(tile));
+        grid.dataset.rank = rk;
+        main.append(el("section", { className: "group" }, head, grid));
+      }
+    } else {
+      const grid = el("div", { className: "grid" }, ...shown.map(tile));
+      grid.dataset.rank = "all";
+      main.append(el("section", { className: "group" }, grid));
+    }
+  }
+
+  function controls() {
+    const counts = Object.fromEntries(order.map((rk) => [rk, data.waifus.filter((w) => w.rank === rk).length]));
+    const filters = $("filters");
+    const mk = (value, label, n) => {
+      const b = el("button", { type: "button" }, label, el("span", { className: "n", textContent: n }));
+      b.setAttribute("aria-pressed", String(value === filter));
+      b.addEventListener("click", () => {
+        filter = value;
+        for (const x of filters.children) x.setAttribute("aria-pressed", String(x === b));
+        render();
+      });
+      return b;
+    };
+    filters.append(mk("all", "ALL", data.waifus.length), ...order.filter((rk) => counts[rk]).map((rk) => mk(rk, rk, counts[rk])));
+    $("sort").addEventListener("change", (e) => { sort = e.target.value; render(); });
+    $("tally").append(...order.filter((rk) => counts[rk]).map((rk) =>
+      el("li", {}, chip(rk), `${ranks[rk].name} × ${counts[rk]}`)));
+    const n = data.waifus.length;
+    $("lede").textContent = `${n} card${n === 1 ? "" : "s"}, ranked from Rare to Legendary. Hover to tilt, click to open.`;
+  }
+
+  // ---- viewer
+  const dlg = $("viewer");
+  let current = null;
+  function open(key) {
+    const w = data.waifus.find((x) => x.key === key);
+    if (!w) return;
+    current = w;
+    applyVars(dlg, rankVars(w.rank));
+    $("v-img").src = BASE + w.hd;
+    $("v-img").alt = `${w.name} card`;
+    $("v-jp").textContent = w.jp;
+    $("v-name").textContent = w.name;
+    $("v-series").textContent = w.series;
+    chip(w.rank, $("v-chip"));
+    $("v-rankname").textContent = ranks[w.rank].name;
+    $("v-stars").textContent = starText(w.rank);
+    const a = $("v-anilist");
+    a.hidden = !w.anilist;
+    if (w.anilist) a.href = w.anilist;
+    if (!dlg.open) dlg.showModal();
+    history.replaceState(null, "", "#" + w.key);
+  }
+  function step(d) {
+    const list = shown.length ? shown : data.waifus;
+    const i = list.findIndex((x) => x.key === current.key);
+    open(list[(i + d + list.length) % list.length].key);
+  }
+  $("v-close").addEventListener("click", () => dlg.close());
+  $("v-prev").addEventListener("click", () => step(-1));
+  $("v-next").addEventListener("click", () => step(1));
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => history.replaceState(null, "", location.pathname + location.search));
+  dlg.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") step(-1);
+    if (e.key === "ArrowRight") step(1);
+  });
+  tilt($("v-tilt"), dlg.querySelector(".stage"));
+
+  // ---- load
+  fetch(BASE + "waifus.json", { cache: "no-cache" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((json) => {
+      data = json; ranks = json.ranks; order = Object.keys(ranks);
+      controls();
+      render();
+      const key = decodeURIComponent(location.hash.slice(1));
+      if (key) open(key);
+    })
+    .catch(() => {
+      $("lede").textContent = "The collection could not be loaded.";
+      $("collection").replaceChildren(el("p", { className: "status", textContent:
+        "Couldn't read profile/waifus/waifus.json. Opened from disk? Serve the folder (python -m http.server) instead." }));
+    });
+})();
+</script>
+</body>
+</html>

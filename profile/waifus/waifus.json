@@ -1,0 +1,199 @@
+{
+  "ranks": {
+    "LR": {
+      "name": "LEGENDARY",
+      "level": 5,
+      "colours": [
+        "#ffcd60",
+        "#f05aa6",
+        "#8257ff"
+      ],
+      "glow": "#f05aa6"
+    },
+    "UR": {
+      "name": "ULTRA RARE",
+      "level": 4,
+      "colours": [
+        "#ff5b79",
+        "#ffcd60",
+        "#2ee6c8",
+        "#32b8f2",
+        "#8257ff"
+      ],
+      "glow": "#f05aa6"
+    },
+    "SSR": {
+      "name": "SUPER SUPER RARE",
+      "level": 3,
+      "colours": [
+        "#fff4c8",
+        "#ffcd60",
+        "#d28c28",
+        "#ffe196"
+      ],
+      "glow": "#ffcd60"
+    },
+    "SR": {
+      "name": "SUPER RARE",
+      "level": 2,
+      "colours": [
+        "#e1c8ff",
+        "#c6a7ff",
+        "#6e3cdc"
+      ],
+      "glow": "#8257ff"
+    },
+    "R": {
+      "name": "RARE",
+      "level": 1,
+      "colours": [
+        "#aad7ff",
+        "#5a96f0",
+        "#2d5abe"
+      ],
+      "glow": "#5aa0ff"
+    }
+  },
+  "waifus": [
+    {
+      "key": "rem",
+      "name": "REM",
+      "jp": "レム",
+      "series": "RE:ZERO",
+      "rank": "LR",
+      "anilist": "https://anilist.co/character/88575",
+      "card": "card-rem.webp",
+      "hd": "hd/card-rem.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "zerotwo",
+      "name": "ZERO TWO",
+      "jp": "ゼロツー",
+      "series": "DARLING IN THE FRANXX",
+      "rank": "UR",
+      "anilist": "https://anilist.co/character/124381",
+      "card": "card-zerotwo.webp",
+      "hd": "hd/card-zerotwo.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "iroha",
+      "name": "IROHA",
+      "jp": "色葉",
+      "series": "3D KANOJO: REAL GIRL",
+      "rank": "UR",
+      "anilist": "https://anilist.co/character/83237",
+      "card": "card-iroha.webp",
+      "hd": "hd/card-iroha.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "mai",
+      "name": "MAI",
+      "jp": "麻衣",
+      "series": "BUNNY GIRL SENPAI",
+      "rank": "SSR",
+      "anilist": "https://anilist.co/character/127222",
+      "card": "card-mai.webp",
+      "hd": "hd/card-mai.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "emilia",
+      "name": "EMILIA",
+      "jp": "エミリア",
+      "series": "RE:ZERO",
+      "rank": "SSR",
+      "anilist": "https://anilist.co/character/88572",
+      "card": "card-emilia.webp",
+      "hd": "hd/card-emilia.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "raphtalia",
+      "name": "RAPHTALIA",
+      "jp": "ラフタリア",
+      "series": "SHIELD HERO",
+      "rank": "SSR",
+      "anilist": "https://anilist.co/character/88889",
+      "card": "card-raphtalia.webp",
+      "hd": "hd/card-raphtalia.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "hori",
+      "name": "HORI",
+      "jp": "京子",
+      "series": "HORIMIYA",
+      "rank": "SR",
+      "anilist": "https://anilist.co/character/66171",
+      "card": "card-hori.webp",
+      "hd": "hd/card-hori.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "yukino",
+      "name": "YUKINO",
+      "jp": "雪乃",
+      "series": "OREGAIRU",
+      "rank": "SR",
+      "anilist": "https://anilist.co/character/67067",
+      "card": "card-yukino.webp",
+      "hd": "hd/card-yukino.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "horikita",
+      "name": "HORIKITA",
+      "jp": "鈴音",
+      "series": "CLASSROOM OF THE ELITE",
+      "rank": "R",
+      "anilist": "https://anilist.co/character/123213",
+      "card": "card-horikita.webp",
+      "hd": "hd/card-horikita.webp",
+      "size": [
+        540,
+        770
+      ]
+    },
+    {
+      "key": "shiro",
+      "name": "SHIRO",
+      "jp": "白",
+      "series": "NO GAME NO LIFE",
+      "rank": "R",
+      "anilist": "https://anilist.co/character/82525",
+      "card": "card-shiro.webp",
+      "hd": "hd/card-shiro.webp",
+      "size": [
+        540,
+        770
+      ]
+    }
+  ]
+}

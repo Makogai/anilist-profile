@@ -1,12 +1,15 @@
 """Waifu collection (a side piece, not on the main About page): ten animated rank cards in the spirit of
 gacha card games (R, SR, SSR, UR, LR), each rank with its own border, aura and effects, plus a header with
 the rank legend. Output goes to profile/waifus/; make_about.py writes waifus.md to paste wherever wanted.
+The showcase site (index.html, GitHub Pages) reads profile/waifus/waifus.json and the full-size cards in
+profile/waifus/hd/, so adding a waifu = Codex art + a WAIFUS entry + `python build/waifus.py <key>`.
 
 The cards form a pyramid, one row per rank group, higher ranks bigger: LR (1) / UR (2) / SSR (3) /
 SR + R (4). Each card is its own animated WebP, rendered at twice the width AniList shows it at.
 
-Run: python build/waifus.py [key ...]   (no keys: header + all cards)
+Run: python build/waifus.py [key ...]   (no keys: header + all cards; the manifest is rewritten every run)
 """
+import json
 import math
 import sys
 import zlib
@@ -20,7 +23,7 @@ from common import (ART, BLUE, CORAL, GOLD, ICE, LACE, LILAC, MAGENTA, MINT, OUT
                     rounded_mask, save, section_title, sparkle)
 
 SUB = "waifus/"  # output subfolder of profile/
-(OUT / SUB).mkdir(exist_ok=True)
+(OUT / SUB / "hd").mkdir(parents=True, exist_ok=True)
 
 CW, CH = 460, 690          # card
 M = 40                     # margin around the card for aura, rays and the LR crown
@@ -55,7 +58,36 @@ WAIFUS = [  # key, name, Japanese name, series, rank
     ("horikita", "HORIKITA", "鈴音", "CLASSROOM OF THE ELITE", "R"),
     ("shiro", "SHIRO", "白", "NO GAME NO LIFE", "R"),
 ]
-PYRAMID = [["rem"], ["zerotwo", "iroha"], ["mai", "emilia", "raphtalia"], ["hori", "yukino", "horikita", "shiro"]]
+ANILIST = {  # AniList character ids, for links on the showcase site
+    "rem": 88575, "zerotwo": 124381, "iroha": 83237, "mai": 127222, "emilia": 88572, "raphtalia": 88889,
+    "hori": 66171, "yukino": 67067, "horikita": 123213, "shiro": 82525,
+}
+COLUMN = 514  # AniList About column width in css px (measured)
+
+
+def pyramid():
+    """Rows for waifus.md: highest rank first; cards shown at the same width share rows, as many per row as
+    fit the AniList column (LR/UR 2, SSR 3, SR/R 4)."""
+    ranked = sorted(WAIFUS, key=lambda w: -RANKS[w[4]]["level"])  # stable: list order within a rank
+    rows, group, width = [], [], None
+
+    def flush():
+        per_row = (COLUMN + 4) // (width + 4)
+        rows.extend(group[i:i + per_row] for i in range(0, len(group), per_row))
+
+    for w in ranked:
+        css = RANKS[w[4]]["out"] // 2
+        if group and css != width:
+            flush()
+            group = []
+        width = css
+        group.append(w[0])
+    if group:
+        flush()
+    return rows
+
+
+PYRAMID = pyramid()
 
 # ---------------------------------------------------------------- geometry shared by every card
 
@@ -347,14 +379,39 @@ def card_frames(key, name, jp, series, rank):
             over_img(f, fx)
 
         img = Image.fromarray(np.clip(np.dstack([f[..., :3], f[..., 3:4] * 255]), 0, 255).astype(np.uint8), "RGBA")
-        frames.append(img.resize((r["out"], round(r["out"] * SH / SW)), Image.LANCZOS))
+        frames.append(img)
     return frames
 
 
 def card(key):
+    """Two files from one render: the AniList-size card and a full-size one for the showcase site."""
     w = next(w for w in WAIFUS if w[0] == key)
     frames = card_frames(*w)
-    save_anim(frames, f"{SUB}card-{key}.webp", [75] * len(frames), quality=80)
+    out = RANKS[w[4]]["out"]
+    small = [f.resize((out, round(out * SH / SW)), Image.LANCZOS) for f in frames]
+    save_anim(small, f"{SUB}card-{key}.webp", [75] * len(frames), quality=80)
+    save_anim(frames, f"{SUB}hd/card-{key}.webp", [75] * len(frames), quality=82)
+
+
+def hex_(c):
+    return "#%02x%02x%02x" % tuple(int(v) for v in c[:3])
+
+
+def manifest():
+    """profile/waifus/waifus.json: everything the showcase site needs, highest rank first."""
+    ranked = sorted(WAIFUS, key=lambda w: -RANKS[w[4]]["level"])
+    data = {
+        "ranks": {rk: {"name": RANKS[rk]["name"], "level": RANKS[rk]["level"],
+                       "colours": [hex_(c) for _, c in RANKS[rk]["stops"]], "glow": hex_(RANKS[rk]["glow"])}
+                  for rk in sorted(RANKS, key=lambda k: -RANKS[k]["level"])},
+        "waifus": [{"key": k, "name": name, "jp": jp, "series": series, "rank": rank,
+                    "anilist": f"https://anilist.co/character/{ANILIST[k]}" if k in ANILIST else None,
+                    "card": f"card-{k}.webp", "hd": f"hd/card-{k}.webp", "size": [SW, SH]}
+                   for k, name, jp, series, rank in ranked],
+    }
+    path = OUT / SUB / "waifus.json"
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"waifus.json: {len(data['waifus'])} waifus")
 
 
 # ---------------------------------------------------------------- section header with the rank legend
@@ -392,5 +449,6 @@ if __name__ == "__main__":
     for k in keys:
         if k == "header":
             header()
-        else:
+        elif k != "manifest":
             card(k)
+    manifest()
