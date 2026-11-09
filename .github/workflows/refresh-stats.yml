@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  pages: write   # to request a Pages rebuild after pushing (see the last step)
 
 concurrency:
   group: refresh-stats
@@ -63,13 +64,24 @@ jobs:
         run: python refresh.py ${{ inputs.force && '--force' || '' }}
 
       - name: Commit and push
+        id: push
         run: |
           git add data/stats.json profile/stats.webp profile/genres.webp profile/milestones.webp
           if git diff --cached --quiet; then
             echo "No changes."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: refresh AniList stats ($(date -u +%Y-%m-%d))"
           git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      # The profile loads these images from GitHub Pages. Pushes made with the workflow's own token don't
+      # reliably start a Pages build, so ask for one explicitly.
+      - name: Rebuild GitHub Pages
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" --jq '.status'

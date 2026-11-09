@@ -35,7 +35,8 @@ show them and commits:
   Legend 20,000), with the progress trail at the real episode count
 
 Like every other image, those three are served from `main` through GitHub Pages, so the profile updates without
-re-pasting. The Action commits to `main`, so run `git pull` before working locally.
+re-pasting. After it pushes, the workflow also asks GitHub for a Pages rebuild, because pushes made with the
+workflow's own token don't reliably start one. The new numbers are live a few minutes later (Pages caches for 10). The Action commits to `main`, so run `git pull` before working locally.
 
 ## Side piece: waifu collection
 
