@@ -1,8 +1,8 @@
 """Daily refresh, run by .github/workflows/refresh-stats.yml (also works locally).
 
 Fetches the AniList stats; when a number changed (or with --force) it re-renders the three panels that
-show them: stats.webp, genres.webp and milestones.webp. about.md serves those three from the repo's
-main branch, so AniList shows the new versions without re-pasting the About text.
+show them: stats.webp, genres.webp and milestones.webp. about.md serves every asset from GitHub Pages
+(main), so AniList shows the new versions without re-pasting the About text.
 """
 import subprocess
 import sys
@@ -11,8 +11,6 @@ import animated
 import fetch_stats
 import panels
 from common import ROOT, STATS
-
-LIVE = ["stats.webp", "genres.webp", "milestones.webp"]
 
 
 def stats_changed() -> bool:

@@ -5,8 +5,9 @@ in midnight blue and violet with mint, pink and gold accents. Assets are served 
 
 ## Put it on AniList
 
-1. **About:** copy all of [`about.md`](about.md) into *Settings → About*. The asset URLs are pinned to a commit, so
-   jsDelivr never serves a stale cached file.
+1. **About:** copy all of [`about.md`](about.md) into *Settings → About*. Every image is served by GitHub Pages
+   from `main` (10-minute cache), so pushing a changed image updates the profile by itself. Re-paste only when
+   sections are added, removed or reordered.
 2. **Banner:** upload [`profile/banner.jpg`](profile/banner.jpg) (1700×330) in *Settings → Banner*. AniList only
    takes static banners.
 3. **Avatar:** upload [`profile/avatar.png`](profile/avatar.png) (Rem, blue ring) or
@@ -32,9 +33,8 @@ show them and commits:
 - `milestones.webp`: the five cards always end at the next tier to reach (tiers go up to Mythic 15,000 and
   Legend 20,000), with the progress trail at the real episode count
 
-`about.md` serves those three from `main` on raw.githubusercontent.com (5-minute cache), so the profile updates
-without re-pasting. Everything else stays pinned to a commit on jsDelivr. The Action commits to `main`, so run
-`git pull` before working locally.
+Like every other image, those three are served from `main` through GitHub Pages, so the profile updates without
+re-pasting. The Action commits to `main`, so run `git pull` before working locally.
 
 ## Side piece: waifu collection
 
@@ -49,6 +49,23 @@ higher ranks bigger. Paste it into the About text wherever you want it.
 | SSR | Mai Sakurajima, Emilia, Raphtalia | Brushed-gold border with corner medallions, pulsing gold glow, rising glitter |
 | SR Super Rare | Kyouko Hori, Yukino Yukinoshita | Amethyst border with gem studs, violet shine |
 | R Rare | Suzune Horikita, Shiro | Sapphire border, shine sweep and twinkles |
+
+## Waifu showcase site
+
+[`index.html`](index.html) is a small site on GitHub Pages at <https://makogai.github.io/anilist-profile/>. It
+reads [`profile/waifus/waifus.json`](profile/waifus/waifus.json) and the full-size cards in `profile/waifus/hd/`,
+so every card added to the collection shows up there after the next push. It groups the cards by rank, with
+rank filters, sorting, hover tilt and a viewer that links to each character on AniList (`#rem` deep-links to Rem).
+
+To add a waifu:
+
+1. Have Codex draw `art/waifu-<key>.png`.
+2. Add her to `WAIFUS` (and her AniList id to `ANILIST`) in `build/waifus.py`.
+3. Run `python build/waifus.py <key>`. This writes both card sizes and the manifest.
+4. Regenerate `waifus.md` with `make_about.py`, commit and push, then paste `waifus.md` again (the new card is a new image in it).
+
+To preview locally, run `python -m http.server` in the repo root and open <http://localhost:8000>. Opening the file
+directly won't work, because the browser blocks it from reading the JSON manifest.
 
 ## What's in it
 
@@ -91,11 +108,11 @@ python fetch_covers.py        # official cover art from the AniList API -> build
 python fetch_stats.py         # AniList numbers -> data/stats.json (refresh.py = this + re-render the live panels)
 python panels.py              # static panels, separators, socials, footer
 python animated.py            # hero, about me, waifu fan, tapes, milestones, chain separator
-python waifus.py             # side collection: header + the ten rank cards in profile/waifus/
+python waifus.py             # side collection: header, rank cards (AniList + hd sizes), waifus.json
 python visualizer.py loop     # profile/nowplaying.webm (needs ../music.mp3, which is git-ignored)
 python visualizer.py full     # optional: export/rem-visualizer-full.mp4, 1080p with audio for YouTube
 python extras.py              # banner + avatars
-python make_about.py <commit-sha>
+python make_about.py          # about.md + waifus.md (+ local previews)
 ```
 
 ## Credits

@@ -1,6 +1,6 @@
 # Keeps the AniList numbers on the profile current: fetches Makogai's stats once a day and, when a
 # number changed, re-renders the stats, genre and milestone panels and commits them. about.md serves
-# those three from main (raw.githubusercontent.com), so AniList picks them up without a re-paste.
+# its images from GitHub Pages (main), so AniList picks them up without a re-paste.
 name: Refresh AniList stats
 
 on:
