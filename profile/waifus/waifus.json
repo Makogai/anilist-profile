@@ -1,5 +1,16 @@
 {
   "ranks": {
+    "S": {
+      "name": "SPECIAL",
+      "level": 6,
+      "colours": [
+        "#8eebff",
+        "#c6a7ff",
+        "#f05aa6",
+        "#ffcd60"
+      ],
+      "glow": "#8eebff"
+    },
     "LR": {
       "name": "LEGENDARY",
       "level": 5,
@@ -55,6 +66,20 @@
     }
   },
   "waifus": [
+    {
+      "key": "rem-s",
+      "name": "REM",
+      "jp": "レム",
+      "series": "RE:ZERO",
+      "rank": "S",
+      "anilist": "https://anilist.co/character/88575",
+      "card": "card-rem-s.webp",
+      "hd": "hd/card-rem-s.webp",
+      "size": [
+        810,
+        1155
+      ]
+    },
     {
       "key": "rem",
       "name": "REM",

@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Waifu Collection · Makogai</title>
-<meta name="description" content="Makogai's animated waifu card collection, ranked from Rare to Legendary.">
+<meta name="description" content="Makogai's animated waifu card collection, ranked from Rare up to S.">
 <meta name="theme-color" content="#090b18">
 <link rel="icon" href="profile/avatar.png">
 <meta property="og:title" content="Waifu Collection · Makogai">
-<meta property="og:description" content="Animated waifu cards, ranked from Rare to Legendary.">
-<meta property="og:image" content="profile/waifus/hd/card-rem.webp">
+<meta property="og:description" content="Animated waifu cards, ranked from Rare up to S.">
+<meta property="og:image" content="profile/waifus/hd/card-rem-s.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -102,6 +102,7 @@
   .group-head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--c2), transparent); opacity: .6; }
   .grid { display: grid; justify-content: center; gap: clamp(12px, 2.5vw, 28px);
           grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--w)), var(--w))); }
+  .grid[data-rank="S"] { --w: clamp(260px, 84vw, 440px); }
   .grid[data-rank="LR"] { --w: clamp(240px, 78vw, 380px); }
   .grid[data-rank="UR"] { --w: clamp(220px, 70vw, 310px); }
   .grid[data-rank="SSR"] { --w: clamp(140px, 43vw, 260px); }
@@ -268,7 +269,7 @@
   const applyVars = (node, vars) => { for (const [k, v] of Object.entries(vars)) node.style.setProperty(k, v); };
   function chip(rk, node = el("span", { className: "chip" }, el("span"))) {
     node.dataset.rank = rk;
-    if (rk === "LR" || rk === "UR") node.dataset.dark = ""; else delete node.dataset.dark;
+    if (rk === "S" || rk === "LR" || rk === "UR") node.dataset.dark = ""; else delete node.dataset.dark;
     node.firstElementChild.textContent = rk;
     applyVars(node, rankVars(rk));
     return node;
@@ -350,7 +351,7 @@
     $("tally").append(...order.filter((rk) => counts[rk]).map((rk) =>
       el("li", {}, chip(rk), `${ranks[rk].name} × ${counts[rk]}`)));
     const n = data.waifus.length;
-    $("lede").textContent = `${n} card${n === 1 ? "" : "s"}, ranked from Rare to Legendary. Hover to tilt, click to open.`;
+    $("lede").textContent = `${n} card${n === 1 ? "" : "s"}, ranked from Rare up to S. Hover to tilt, click to open.`;
   }
 
   // ---- viewer

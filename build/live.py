@@ -54,9 +54,14 @@ class Animator:
         self.mx, self.my = pivot[0] + c * dx - s * dy, pivot[1] + s * dx + c * dy
 
     def render(self) -> np.ndarray:
+        return self.render_many(self.src)[0]
+
+    def render_many(self, *srcs) -> list:
+        """Sample several pixel-aligned layers (the art, its closed-eye twin, masks) with this frame's
+        displacement, so they stay registered while the figure moves."""
         # numpy scalars (np.radians etc.) promote the maps to float64; remap needs float32
-        out = cv2.remap(self.src, self.mx.astype(np.float32), self.my.astype(np.float32), cv2.INTER_LINEAR,
-                        borderMode=cv2.BORDER_REFLECT)
+        mx, my = self.mx.astype(np.float32), self.my.astype(np.float32)
+        out = [cv2.remap(s, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT) for s in srcs]
         self.reset()
         return out
 

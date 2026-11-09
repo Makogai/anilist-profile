@@ -40,12 +40,13 @@ workflow's own token don't reliably start one. The new numbers are live a few mi
 
 ## Side piece: waifu collection
 
-[`waifus.md`](waifus.md) is a separate snippet, not part of the main About page: ten animated rank cards
+[`waifus.md`](waifus.md) is a separate snippet, not part of the main About page: eleven animated rank cards
 in [`profile/waifus/`](profile/waifus/) under a header with the rank legend, arranged as a pyramid with
 higher ranks bigger. Paste it into the About text wherever you want it.
 
 | Rank | Cards | Look |
 |---|---|---|
+| S Special | Rem (moonlit oni variant) | **Rigged:** her head tilts and turns, hair tips and ribbon tails follow a beat later, she waves from the wrist and forearm, breathes and blinks; the horn and the blue rose glow and a moonlit rim light runs down her outline. The scenery drifts behind her under god rays and a turning magic circle, and her head breaks out over the top of the frame. Cut-crystal border whose facets flash as light runs round it, gold keylines, three comets, lightning crackling along the edge, sapphire gems, a hexagonal S crest, prismatic aura with rays, petals and bokeh. Rendered at 2x |
 | LR Legendary | Rem | **Alive:** blinks, hair and ribbon sway, breathing, eye glint. Dark prismatic border with two comets orbiting it, a crown, light rays and a magenta-gold aura, holo foil, drifting petals |
 | UR Ultra Rare | Zero Two, Iroha Igarashi | **Alive:** blinks, hair sway, breathing, eye glint. Rainbow border and aura cycling around the card, holo foil sweep, star twinkles |
 | SSR | Mai Sakurajima, Emilia, Raphtalia | **Alive:** blinks, hair sway. Brushed-gold border with corner medallions, pulsing gold glow, rising glitter |
@@ -56,6 +57,12 @@ Like on Shoob cards, the rank row isn't plain stars: each card shows its own tok
 `art/tokens/` (Rem's morning-star, Zero Two's horns, Mai's bunny, Shiro's chess queen and so on). The "alive"
 cards are animated from two Codex edits of each portrait in `art/live/`: a closed-eye copy for the blink, and a
 copy with the hair painted flat magenta, which becomes an exact hair mask.
+
+The S card ([`build/srank.py`](build/srank.py)) goes further and is rigged from four Codex twins of its art in
+`art/live/`: `-matte` (her on flat green, keyed to her silhouette), `-plate` (the scenery with her removed,
+revealed wherever she moves), `-blink`, and `-parts` (flat colours for hair, skin, clothes, headdress and ribbon,
+horn and rose). The rig finds her eyes, face, hair, ribbon and raised hand from those, so another S card needs
+the same five images. A character can have several cards: `VARIANT_OF` maps `rem-s` to Rem's token.
 
 ## Waifu showcase site
 

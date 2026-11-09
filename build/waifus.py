@@ -1,11 +1,15 @@
-"""Waifu collection (a side piece, not on the main About page): ten animated rank cards in the spirit of
-gacha card games (R, SR, SSR, UR, LR), each rank with its own border, aura and effects, plus a header with
+"""Waifu collection (a side piece, not on the main About page): animated rank cards in the spirit of
+gacha card games (R, SR, SSR, UR, LR, S), each rank with its own border, aura and effects, plus a header with
 the rank legend. Output goes to profile/waifus/; make_about.py writes waifus.md to paste wherever wanted.
 The showcase site (index.html, GitHub Pages) reads profile/waifus/waifus.json and the full-size cards in
 profile/waifus/hd/, so adding a waifu = Codex art + a WAIFUS entry + `python build/waifus.py <key>`.
 
-The cards form a pyramid, one row per rank group, higher ranks bigger: LR (1) / UR (2) / SSR (3) /
+The cards form a pyramid, one row per rank group, higher ranks bigger: S (1) / LR (1) / UR (2) / SSR (3) /
 SR + R (4). Each card is its own animated WebP, rendered at twice the width AniList shows it at.
+
+S ("SPECIAL") is the top tier, like Shoob's animated S cards: a fully rigged character in a crystal frame,
+built by srank.py (see there). A character can have more than one card; VARIANT_OF maps an alternate card
+to her token.
 
 Like the top tiers of Shoob cards, SSR and up are "alive": the character blinks and her hair sways (UR and LR
 also breathe, LR gets an eye glint). That needs two Codex edits of her art in art/live/: a closed-eye twin
@@ -52,7 +56,11 @@ RANKS = {
     "UR": dict(level=4, out=400, stops=PRISM, glow=MAGENTA, name="ULTRA RARE", frames=32),
     "LR": dict(level=5, out=440, stops=[(0, GOLD), (0.5, MAGENTA), (1, VIOLET)], glow=MAGENTA, name="LEGENDARY",
                frames=36),
+    # rigged, rendered at 2x by srank.py; hd = width of the showcase file
+    "S": dict(level=6, out=520, stops=[(0, ICE), (0.35, LILAC), (0.7, MAGENTA), (1, GOLD)], glow=ICE,
+              name="SPECIAL", frames=48, hd=810),
 }
+DARK_BADGE = ("S", "LR", "UR")  # gradient letters need a dark plate to stay readable
 
 # how alive each rank is: hair sway amplitude (px at card scale), breathing scale, eye glint
 LIVING = {
@@ -64,6 +72,7 @@ ART_SIZE = (CW - 2 * BW + 2, CH - 2 * BW + 2)
 ART_POS = (M + BW - 1, M + BW - 1)
 
 WAIFUS = [  # key, name, Japanese name, series, rank
+    ("rem-s", "REM", "レム", "RE:ZERO", "S"),
     ("rem", "REM", "レム", "RE:ZERO", "LR"),
     ("zerotwo", "ZERO TWO", "ゼロツー", "DARLING IN THE FRANXX", "UR"),
     ("iroha", "IROHA", "色葉", "3D KANOJO: REAL GIRL", "UR"),
@@ -77,8 +86,9 @@ WAIFUS = [  # key, name, Japanese name, series, rank
 ]
 ANILIST = {  # AniList character ids, for links on the showcase site
     "rem": 88575, "zerotwo": 124381, "iroha": 83237, "mai": 127222, "emilia": 88572, "raphtalia": 88889,
-    "hori": 66171, "yukino": 67067, "horikita": 123213, "shiro": 82525,
+    "hori": 66171, "yukino": 67067, "horikita": 123213, "shiro": 82525, "rem-s": 88575,
 }
+VARIANT_OF = {"rem-s": "rem"}  # alternate cards of a character share her token
 COLUMN = 514  # AniList About column width in css px (measured)
 
 
@@ -181,7 +191,7 @@ def rank_badge(img, x, y, rank, h=48):
     poly = [(c, 0), (w, 0), (w, h - c), (w - c, h), (0, h), (0, c)]
     m = Image.new("L", (w, h), 0)
     ImageDraw.Draw(m).polygon(poly, fill=255)
-    dark = rank in ("LR", "UR")  # gradient letters need a dark plate to stay readable
+    dark = rank in DARK_BADGE
     plate = gradient(w, h, [(0, (25, 12, 45)), (1, (60, 25, 90))] if dark else RANKS[rank]["stops"], "d")
     plate.putalpha(m)
     glow = Image.new("RGBA", (w + 40, h + 40), (0, 0, 0, 0))
@@ -189,11 +199,13 @@ def rank_badge(img, x, y, rank, h=48):
     img.alpha_composite(blur_glow(glow, 8, 1.4), (x - 20, y - 20))
     img.alpha_composite(plate, (x, y))
     d = ImageDraw.Draw(img)
-    d.polygon([(x + px, y + py) for px, py in poly], outline=rgba(GOLD if rank == "LR" else LACE, 230), width=2)
-    if rank in ("LR", "UR"):
-        draw_text(img, (x + w / 2, y + h / 2 + 1), rank, f, anchor="mm", tracking=3,
-                  gradient_stops=PRISM if rank == "UR" else [(0, (255, 240, 170)), (0.5, GOLD), (1, MAGENTA)],
-                  glow=None, shadow=True)
+    d.polygon([(x + px, y + py) for px, py in poly], outline=rgba(GOLD if rank in ("LR", "S") else LACE, 230),
+              width=2)
+    if dark:
+        letters = {"UR": PRISM, "LR": [(0, (255, 240, 170)), (0.5, GOLD), (1, MAGENTA)],
+                   "S": [(0, LACE), (0.35, ICE), (0.7, LILAC), (1, MAGENTA)]}[rank]
+        draw_text(img, (x + w / 2, y + h / 2 + 1), rank, f, anchor="mm", tracking=3, gradient_stops=letters,
+                  glow=ICE if rank == "S" else None, glow_radius=6, shadow=True)
     else:
         draw_text(img, (x + w / 2, y + h / 2 + 1), rank, f, fill=SATIN if rank != "SR" else LACE, anchor="mm",
                   tracking=3, shadow=False)
@@ -204,7 +216,7 @@ def stars(img, x, y, rank, size=12, gap=30):
     d = ImageDraw.Draw(img)
     level = RANKS[rank]["level"]
     for i in range(level):
-        col = mix(PRISM[i % 5][1], LACE, 0.15) if rank in ("UR", "LR") else RANKS[rank]["stops"][1][1]
+        col = mix(PRISM[i % 5][1], LACE, 0.15) if rank in DARK_BADGE else RANKS[rank]["stops"][1][1]
         d.polygon(star_points(x + i * gap, y, size), fill=rgba(col), outline=rgba(LACE, 180))
 
 
@@ -489,12 +501,24 @@ def card_frames(key, name, jp, series, rank):
 def card(key):
     """Two files from one render: the AniList-size card and a full-size one for the showcase site."""
     w = next(w for w in WAIFUS if w[0] == key)
-    frames = card_frames(*w)
+    if w[4] == "S":
+        import srank  # imported here: srank builds on this module
+        frames = srank.card_frames(*w)
+    else:
+        frames = card_frames(*w)
     out = RANKS[w[4]]["out"]
     small = [f.resize((out, round(out * SH / SW)), Image.LANCZOS) for f in frames]
-    ms = 80 if w[4] in LIVING else 75
+    hd_w, hd_h = hd_size(w[4])
+    hd = frames if frames[0].width == hd_w else [f.resize((hd_w, hd_h), Image.LANCZOS) for f in frames]
+    ms = {"S": 60}.get(w[4], 80 if w[4] in LIVING else 75)
     save_anim(small, f"{SUB}card-{key}.webp", [ms] * len(frames), quality=80)
-    save_anim(frames, f"{SUB}hd/card-{key}.webp", [ms] * len(frames), quality=82)
+    save_anim(hd, f"{SUB}hd/card-{key}.webp", [ms] * len(frames), quality=82)
+
+
+def hd_size(rank):
+    """Size of the showcase file: the render itself, or the rank's own hd width."""
+    w = RANKS[rank].get("hd", SW)
+    return w, round(w * SH / SW)
 
 
 def hex_(c):
@@ -510,7 +534,7 @@ def manifest():
                   for rk in sorted(RANKS, key=lambda k: -RANKS[k]["level"])},
         "waifus": [{"key": k, "name": name, "jp": jp, "series": series, "rank": rank,
                     "anilist": f"https://anilist.co/character/{ANILIST[k]}" if k in ANILIST else None,
-                    "card": f"card-{k}.webp", "hd": f"hd/card-{k}.webp", "size": [SW, SH]}
+                    "card": f"card-{k}.webp", "hd": f"hd/card-{k}.webp", "size": list(hd_size(rank))}
                    for k, name, jp, series, rank in ranked],
     }
     path = OUT / SUB / "waifus.json"
@@ -526,8 +550,8 @@ def header():
     img.alpha_composite(particles(img.size, 50, 29, rmax=8, colours=(MAGENTA, MINT, GOLD, LACE)))
     section_title(img, 66, "CHARACTER FILES", "WAIFU COLLECTION", "俺の嫁",
                   stops=[(0, MAGENTA), (0.5, VIOLET), (1, MINT)], glow=MAGENTA, label_col=MAGENTA)
-    # legend: badge + rank name + stars for each rank, left to right from LR down to R
-    order = ["LR", "UR", "SSR", "SR", "R"]
+    # legend: badge + rank name + stars for each rank, left to right from S down to R
+    order = ["S", "LR", "UR", "SSR", "SR", "R"]
     slot = (W - 120) / len(order)
     size = 30  # one size for all labels: the largest at which the longest still fits its slot
     while any(font("bahn", size, "Bold").getlength(RANKS[rk]["name"]) + 3 * len(RANKS[rk]["name"]) > slot - 30
@@ -539,7 +563,7 @@ def header():
         bw = rank_badge(tmp, 0, 4, rk, h=52)
         img.alpha_composite(tmp, (int(cx - bw / 2), 230))
         draw_text(img, (cx, 330), RANKS[rk]["name"], font("bahn", size, "Bold"), anchor="ms", tracking=3,
-                  fill=mix(RANKS[rk]["stops"][0][1], LACE, 0.25) if rk not in ("UR", "LR") else LACE)
+                  fill=mix(RANKS[rk]["stops"][0][1], LACE, 0.25) if rk not in DARK_BADGE else LACE)
         lv = RANKS[rk]["level"]
         stars(img, int(cx - (lv - 1) * 30 / 2), 368, rk, size=11, gap=30)
     save(finish_card(img, stops=[(0, MAGENTA), (0.5, VIOLET), (1, MINT)], glow_col=MAGENTA), f"{SUB}waifu-head.webp")
