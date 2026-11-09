@@ -44,11 +44,16 @@ higher ranks bigger. Paste it into the About text wherever you want it.
 
 | Rank | Cards | Look |
 |---|---|---|
-| LR Legendary | Rem | Dark prismatic border with two comets orbiting it, a crown, light rays and a magenta-gold aura, holo foil, drifting petals |
-| UR Ultra Rare | Zero Two, Iroha Igarashi | Rainbow border and aura cycling around the card, holo foil sweep, star twinkles |
-| SSR | Mai Sakurajima, Emilia, Raphtalia | Brushed-gold border with corner medallions, pulsing gold glow, rising glitter |
+| LR Legendary | Rem | **Alive:** blinks, hair and ribbon sway, breathing, eye glint. Dark prismatic border with two comets orbiting it, a crown, light rays and a magenta-gold aura, holo foil, drifting petals |
+| UR Ultra Rare | Zero Two, Iroha Igarashi | **Alive:** blinks, hair sway, breathing, eye glint. Rainbow border and aura cycling around the card, holo foil sweep, star twinkles |
+| SSR | Mai Sakurajima, Emilia, Raphtalia | **Alive:** blinks, hair sway. Brushed-gold border with corner medallions, pulsing gold glow, rising glitter |
 | SR Super Rare | Kyouko Hori, Yukino Yukinoshita | Amethyst border with gem studs, violet shine |
 | R Rare | Suzune Horikita, Shiro | Sapphire border, shine sweep and twinkles |
+
+Like on Shoob cards, the rank row isn't plain stars: each card shows its own token, one per rank level, from
+`art/tokens/` (Rem's morning-star, Zero Two's horns, Mai's bunny, Shiro's chess queen and so on). The "alive"
+cards are animated from two Codex edits of each portrait in `art/live/`: a closed-eye copy for the blink, and a
+copy with the hair painted flat magenta, which becomes an exact hair mask.
 
 ## Waifu showcase site
 
@@ -59,7 +64,8 @@ rank filters, sorting, hover tilt and a viewer that links to each character on A
 
 To add a waifu:
 
-1. Have Codex draw `art/waifu-<key>.png`.
+1. Have Codex draw `art/waifu-<key>.png` and her token `art/tokens/<key>.png`. For SSR and up, also have it make
+   the `art/live/waifu-<key>-blink.png` and `-hair.png` edits (the briefs are in the git history of this change).
 2. Add her to `WAIFUS` (and her AniList id to `ANILIST`) in `build/waifus.py`.
 3. Run `python build/waifus.py <key>`. This writes both card sizes and the manifest.
 4. Regenerate `waifus.md` with `make_about.py`, commit and push, then paste `waifus.md` again (the new card is a new image in it).

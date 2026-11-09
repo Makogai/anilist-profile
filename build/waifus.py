@@ -7,6 +7,11 @@ profile/waifus/hd/, so adding a waifu = Codex art + a WAIFUS entry + `python bui
 The cards form a pyramid, one row per rank group, higher ranks bigger: LR (1) / UR (2) / SSR (3) /
 SR + R (4). Each card is its own animated WebP, rendered at twice the width AniList shows it at.
 
+Like the top tiers of Shoob cards, SSR and up are "alive": the character blinks and her hair sways (UR and LR
+also breathe, LR gets an eye glint). That needs two Codex edits of her art in art/live/: a closed-eye twin
+(-blink) and a twin with the hair painted flat magenta (-hair), which becomes an exact hair mask. Instead of
+plain stars every card shows its own token (art/tokens/<key>.png), one per rank level.
+
 Run: python build/waifus.py [key ...]   (no keys: header + all cards; the manifest is rewritten every run)
 """
 import json
@@ -17,10 +22,13 @@ import zlib
 import numpy as np
 from PIL import Image, ImageDraw
 
+import cv2
+
 from animated import save_anim, shine_band
 from common import (ART, BLUE, CORAL, GOLD, ICE, LACE, LILAC, MAGENTA, MINT, OUT, SATIN, VIOLET, VOID, W,
-                    blur_glow, cover, draw_text, finish_card, font, gradient, mix, panel_base, particles, rgba,
-                    rounded_mask, save, section_title, sparkle)
+                    black_to_alpha, blur_glow, cover, draw_text, finish_card, font, gradient, mix, panel_base,
+                    particles, rgba, rounded_mask, save, section_title, sparkle)
+from live import Animator, blink_amount, ellipse_mask, locate_change
 
 SUB = "waifus/"  # output subfolder of profile/
 (OUT / SUB / "hd").mkdir(parents=True, exist_ok=True)
@@ -40,11 +48,20 @@ PRISM = [(0, CORAL), (0.25, GOLD), (0.5, MINT), (0.75, BLUE), (1, VIOLET)]
 RANKS = {
     "R": dict(level=1, out=240, stops=SAPPHIRE, glow=(90, 160, 255), name="RARE", frames=20),
     "SR": dict(level=2, out=240, stops=AMETHYST, glow=VIOLET, name="SUPER RARE", frames=20),
-    "SSR": dict(level=3, out=320, stops=GOLD_METAL, glow=GOLD, name="SUPER SUPER RARE", frames=24),
-    "UR": dict(level=4, out=400, stops=PRISM, glow=MAGENTA, name="ULTRA RARE", frames=24),
+    "SSR": dict(level=3, out=320, stops=GOLD_METAL, glow=GOLD, name="SUPER SUPER RARE", frames=28),
+    "UR": dict(level=4, out=400, stops=PRISM, glow=MAGENTA, name="ULTRA RARE", frames=32),
     "LR": dict(level=5, out=440, stops=[(0, GOLD), (0.5, MAGENTA), (1, VIOLET)], glow=MAGENTA, name="LEGENDARY",
-               frames=26),
+               frames=36),
 }
+
+# how alive each rank is: hair sway amplitude (px at card scale), breathing scale, eye glint
+LIVING = {
+    "SSR": dict(hair=1.8, breath=0.0, glint=False),
+    "UR": dict(hair=2.4, breath=0.006, glint=True),
+    "LR": dict(hair=2.8, breath=0.008, glint=True),
+}
+ART_SIZE = (CW - 2 * BW + 2, CH - 2 * BW + 2)
+ART_POS = (M + BW - 1, M + BW - 1)
 
 WAIFUS = [  # key, name, Japanese name, series, rank
     ("rem", "REM", "レム", "RE:ZERO", "LR"),
@@ -191,19 +208,85 @@ def stars(img, x, y, rank, size=12, gap=30):
         d.polygon(star_points(x + i * gap, y, size), fill=rgba(col), outline=rgba(LACE, 180))
 
 
+def tokens(img, x, y, key, rank, size=36, gap=40):
+    """Row of the character's own token (art/tokens/<key>.png), one per rank level; stars as a fallback."""
+    path = ART / "tokens" / f"{key}.png"
+    if not path.exists():
+        stars(img, x + 12, y, rank)
+        return
+    tok = Image.open(path).convert("RGB").resize((size, size), Image.LANCZOS)
+    tok = black_to_alpha(np.asarray(tok, np.float32), floor=14, gain=1.3)
+    for i in range(RANKS[rank]["level"]):
+        img.alpha_composite(blur_glow(tok, 4, 1.2), (int(x + i * gap - size / 2 + 12), int(y - size / 2)))
+        img.alpha_composite(tok, (int(x + i * gap - size / 2 + 12), int(y - size / 2)))
+
+
+# ---------------------------------------------------------------- living characters
+
+class Living:
+    """Blink, hair sway, breathing and eye glint for one card's art (all in art-image pixels)."""
+
+    def __init__(self, key, rank, art: np.ndarray):
+        self.cfg = LIVING[rank]
+        self.art = art
+        blink = cover(Image.open(ART / "live" / f"waifu-{key}-blink.png").convert("RGBA"), ART_SIZE, (0.5, 0.0))
+        hair = cover(Image.open(ART / "live" / f"waifu-{key}-hair.png").convert("RGBA"), ART_SIZE, (0.5, 0.0))
+        self.blink = np.asarray(blink, np.float32)
+        x0, y0, x1, y1, _, _ = locate_change(art, self.blink, blur=3, thresh=0.2)
+        self.eye_c = ((x0 + x1) / 2, (y0 + y1) / 2)
+        self.eye_box = (x0, y0, x1, y1)
+        # generous ellipse: the open eye's corners reach a little past the area that changed most
+        self.eye = ellipse_mask(art.shape, self.eye_c, ((x1 - x0) / 2 + 16, (y1 - y0) / 2 + 11), 4)
+        self.hair = self.hair_mask(np.asarray(hair, np.float32))
+        h, w = art.shape[:2]
+        self.body = ellipse_mask(art.shape, (w / 2, h * 0.5), (w * 0.5, h * 0.6), 40)
+        self.anim = Animator(art)
+
+    def hair_mask(self, edited):
+        """Pixels Codex painted magenta (and that really changed), minus the area around the eyes."""
+        hsv_ = cv2.cvtColor(edited[..., :3].astype(np.uint8), cv2.COLOR_RGB2HSV).astype(np.float32)
+        hue, sat, val = hsv_[..., 0] * 2, hsv_[..., 1] / 255, hsv_[..., 2] / 255
+        changed = np.abs(edited[..., :3] - self.art[..., :3]).mean(axis=2) > 30
+        m = ((hue > 275) & (hue < 335) & (sat > 0.45) & (val > 0.35) & changed).astype(np.float32)
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        m = np.clip(cv2.GaussianBlur(m, (0, 0), 3) * 1.3, 0, 1)
+        near_eye = ellipse_mask(self.art.shape, self.eye_c, ((self.eye_box[2] - self.eye_box[0]) / 2 + 30,
+                                                             (self.eye_box[3] - self.eye_box[1]) / 2 + 22), 6)
+        return m * (1 - near_eye)
+
+    def frame(self, t):
+        a = self.anim
+        a.sway(self.hair, t, self.cfg["hair"], wavelength=130)
+        if self.cfg["breath"]:
+            # breathing: scale up from the bottom edge, strongest over the figure
+            s = self.cfg["breath"] * math.sin(2 * math.pi * t)
+            a.my -= (a.yy - a.yy.max()) * s * self.body
+        out = a.render().astype(np.float32)
+        k = blink_amount(t, 0.62, 0.07)
+        if k > 0:
+            m = (self.eye * k)[..., None]
+            out = out * (1 - m) + self.blink * m
+        return out
+
+    def glint(self, d, t, origin):
+        """Small anime sparkle on the eye, once per loop."""
+        if not self.cfg["glint"] or not (0.22 <= t < 0.38):
+            return
+        x0, y0, x1, y1 = self.eye_box
+        u = math.sin(math.pi * (t - 0.22) / 0.16)
+        cx, cy = origin[0] + x0 + 0.72 * (x1 - x0), origin[1] + y0 + 0.3 * (y1 - y0)
+        sparkle(d, cx, cy, int(4 + 10 * u), LACE, int(255 * u))
+
+
 # ---------------------------------------------------------------- one card
 
 def card_static(key, name, jp, series, rank):
-    """Art, border base and all text for one card, as float layers (art+border) and an RGBA overlay."""
+    """The raw art (art-image sized float RGBA), the static border as a float layer and an RGBA overlay with
+    ornaments and text. The art is kept apart so living cards can move it under the frame."""
     r = RANKS[rank]
     base = np.zeros((SH, SW, 4), np.float32)
-    art = cover(Image.open(ART / f"waifu-{key}.png").convert("RGBA"), (CW - 2 * BW + 2, CH - 2 * BW + 2), (0.5, 0.0))
-    art.alpha_composite(gradient(art.width, art.height, [(0, (0, 0, 0, 0)), (0.62, (0, 0, 0, 0)),
-                                                         (0.8, rgba(VOID, 205)), (1, rgba(VOID, 250))], "v"))
-    canvas = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
-    canvas.paste(art, (M + BW - 1, M + BW - 1))
-    art_rgb = np.asarray(canvas, np.float32)[..., :3]
-    over(base, art_rgb, ART_M)
+    art = np.asarray(cover(Image.open(ART / f"waifu-{key}.png").convert("RGBA"), ART_SIZE, (0.5, 0.0)),
+                     np.float32)
 
     if rank in ("R", "SR", "SSR"):  # static metal border
         col = ramp(DIAG, r["stops"])
@@ -275,18 +358,35 @@ def card_static(key, name, jp, series, rank):
         else [(0, LACE), (0.4, MINT), (1, VIOLET)]
     draw_text(top, (M + BW + 16, M + CH - 76), name, font("bahn", size, "Bold"), anchor="ls", tracking=6,
               gradient_stops=name_stops, glow=r["glow"], glow_radius=14)
-    stars(top, M + BW + 30, M + CH - 44, rank)
+    tokens(top, M + BW + 18, M + CH - 44, key, rank)
     rf = 24
     while font("bahn", rf, "SemiBold").getlength(r["name"]) + 3 * len(r["name"]) > CW - 2 * BW - 150:
         rf -= 1
     draw_text(top, (M + CW - BW - 22, M + CH - 34), r["name"], font("bahn", rf, "SemiBold"),
               fill=mix(accent, LACE, 0.3), anchor="rs", tracking=3, shadow=False)
-    return base, top
+    return art, base, top
+
+
+# darkening under the name area, applied after the art moves so it stays put
+_SHADE = np.asarray(gradient(*ART_SIZE, [(0, (0, 0, 0, 0)), (0.62, (0, 0, 0, 0)), (0.8, rgba(VOID, 205)),
+                                         (1, rgba(VOID, 250))], "v"), np.float32)[..., 3:4] / 255
+
+
+def art_layer(art_rgb):
+    """Shade the art and place it on a card-sized canvas."""
+    shaded = art_rgb[..., :3] * (1 - _SHADE) + np.array(VOID, np.float32) * _SHADE
+    canvas = np.zeros((SH, SW, 3), np.float32)
+    x, y = ART_POS
+    canvas[y:y + ART_SIZE[1], x:x + ART_SIZE[0]] = shaded
+    return canvas
 
 
 def card_frames(key, name, jp, series, rank):
     r = RANKS[rank]
-    base, top = card_static(key, name, jp, series, rank)
+    art, base, top = card_static(key, name, jp, series, rank)
+    live_files = [ART / "live" / f"waifu-{key}-{kind}.png" for kind in ("blink", "hair")]
+    living = Living(key, rank, art) if rank in LIVING and all(p.exists() for p in live_files) else None
+    still = art_layer(art)
     n = r["frames"]
     rng = np.random.default_rng(zlib.crc32(key.encode()))
     frames = []
@@ -313,7 +413,8 @@ def card_frames(key, name, jp, series, rank):
             strength = {"R": 0.5, "SR": 0.6, "SSR": 0.55 + 0.35 * pulse}[rank]
             over(f, r["glow"], np.exp(-OUTSIDE / sigma) * (OUTSIDE > 0) * strength)
 
-        # card body (art + static border)
+        # card body: the art (moving for living ranks), then the static border
+        over(f, art_layer(living.frame(t)) if living else still, ART_M)
         over(f, base[..., :3], base[..., 3])
 
         # animated borders
@@ -355,6 +456,8 @@ def card_frames(key, name, jp, series, rank):
         # particles in front
         fx = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
         d = ImageDraw.Draw(fx)
+        if living:
+            living.glint(d, t, ART_POS)
         for x, y, ph, s in twinkles:
             a = max(0.0, math.sin(2 * math.pi * (2 * t + ph)))
             if a > 0.05:
@@ -389,8 +492,9 @@ def card(key):
     frames = card_frames(*w)
     out = RANKS[w[4]]["out"]
     small = [f.resize((out, round(out * SH / SW)), Image.LANCZOS) for f in frames]
-    save_anim(small, f"{SUB}card-{key}.webp", [75] * len(frames), quality=80)
-    save_anim(frames, f"{SUB}hd/card-{key}.webp", [75] * len(frames), quality=82)
+    ms = 80 if w[4] in LIVING else 75
+    save_anim(small, f"{SUB}card-{key}.webp", [ms] * len(frames), quality=80)
+    save_anim(frames, f"{SUB}hd/card-{key}.webp", [ms] * len(frames), quality=82)
 
 
 def hex_(c):
