@@ -1,9 +1,9 @@
 {
   "anime": {
     "count": 457,
-    "episodes": 9607,
-    "minutes": 228749,
-    "mean": 84.65,
+    "episodes": 9609,
+    "minutes": 228799,
+    "mean": 84.62,
     "genres": [
       {
         "genre": "Action",
@@ -57,7 +57,7 @@
   },
   "manga": {
     "count": 359,
-    "chapters": 23108,
+    "chapters": 23123,
     "mean": 93.75,
     "genres": [
       {
@@ -86,5 +86,5 @@
       }
     ]
   },
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }
