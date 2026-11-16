@@ -56,17 +56,17 @@
     ]
   },
   "manga": {
-    "count": 362,
-    "chapters": 23281,
+    "count": 364,
+    "chapters": 23310,
     "mean": 93.75,
     "genres": [
       {
         "genre": "Action",
-        "count": 303
+        "count": 305
       },
       {
         "genre": "Fantasy",
-        "count": 279
+        "count": 281
       },
       {
         "genre": "Adventure",
@@ -74,7 +74,7 @@
       },
       {
         "genre": "Drama",
-        "count": 81
+        "count": 82
       },
       {
         "genre": "Comedy",
@@ -86,5 +86,5 @@
       }
     ]
   },
-  "updated": "2026-11-15"
+  "updated": "2026-11-16"
 }
