@@ -57,7 +57,7 @@
   },
   "manga": {
     "count": 365,
-    "chapters": 23347,
+    "chapters": 23382,
     "mean": 93.75,
     "genres": [
       {
@@ -86,5 +86,5 @@
       }
     ]
   },
-  "updated": "2026-11-27"
+  "updated": "2026-11-28"
 }
